@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KuroCat Photo Studio — 用一张猫咪照片生成桌面宠物形象</title>
+<meta name="description" content="KuroCat Photo Studio：上传一张猫咪照片，本地分析出配色、花纹、脸型、耳型，立刻生成 2D 与 3D 桌面宠物形象。基于 qianyiai/kurocat（MIT）的衍生项目。" />
+<meta property="og:title" content="KuroCat Photo Studio" />
+<meta property="og:description" content="照片 → 桌宠形象，本地运行，2D 与 3D 同时生效。" />
+<meta property="og:image" content="./assets/studio.png" />
+<link rel="icon" href="./assets/menu.png" />
+<style>
+  :root{
+    --bg:#0e0f11; --bg2:#15171a; --card:#1b1e22; --line:#2a2f36;
+    --fg:#eef1f4; --dim:#9aa4af; --accent:#d2f244; --accent2:#8fd0ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 15% -10%, #1d2a1a 0%, transparent 60%),
+               radial-gradient(900px 500px at 90% 0%, #1a2530 0%, transparent 55%),
+               var(--bg);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header.hero{padding:72px 0 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center}
+  .kicker{display:inline-block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);
+    border:1px solid rgba(210,242,68,.35);border-radius:999px;padding:4px 12px;margin-bottom:18px}
+  h1{font-size:44px;line-height:1.15;margin:0 0 14px;letter-spacing:-.02em}
+  h1 span{color:var(--accent)}
+  .lede{font-size:17px;color:var(--dim);margin:0 0 26px}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:10px;font-weight:600;font-size:15px;
+    border:1px solid var(--line);background:var(--card);color:var(--fg);transition:.15s}
+  .btn:hover{transform:translateY(-1px);text-decoration:none;border-color:#3a424c}
+  .btn.primary{background:var(--accent);color:#12140f;border-color:var(--accent)}
+  .btn.primary:hover{background:#dff96a}
+  .shot{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg2);
+    box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  .shot img{display:block;width:100%;height:auto}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color:var(--dim)}
+  .meta b{color:var(--fg);font-weight:600}
+  section{padding:56px 0;border-top:1px solid rgba(255,255,255,.06)}
+  h2{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+  .sub{color:var(--dim);margin:0 0 28px}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step .n{width:26px;height:26px;border-radius:8px;background:rgba(210,242,68,.14);color:var(--accent);
+    display:grid;place-items:center;font-size:13px;font-weight:700;margin-bottom:10px}
+  .step h3{margin:0 0 6px;font-size:15px}
+  .step p{margin:0;font-size:13.5px;color:var(--dim)}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .gallery figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .gallery img{display:block;width:100%;height:auto;background:#000}
+  figcaption{padding:10px 14px;font-size:13px;color:var(--dim)}
+  .dl{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .dl .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .dl h3{margin:0 0 4px;font-size:16px}
+  .dl .tag{font-size:12px;color:var(--accent);margin-bottom:12px;display:block}
+  .dl ul{margin:0 0 14px;padding-left:18px;color:var(--dim);font-size:13.5px}
+  .dl li{margin:3px 0}
+  pre{background:#0b0c0e;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:#d7e0e8}
+  .note{background:rgba(143,208,255,.07);border:1px solid rgba(143,208,255,.25);border-radius:12px;
+    padding:14px 18px;font-size:14px;color:#cfe6f7;margin-top:18px}
+  footer{border-top:1px solid rgba(255,255,255,.06);padding:28px 0 60px;color:var(--dim);font-size:13px}
+  footer p{margin:6px 0}
+  @media (max-width:900px){
+    header.hero{grid-template-columns:1fr;padding-top:48px}
+    .steps,.gallery,.dl{grid-template-columns:1fr}
+    h1{font-size:34px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <span class="kicker">MIT · Tauri 2 · Windows / macOS / Linux</span>
+      <h1>给你的猫拍张照，<br /><span>它就成为桌宠</span></h1>
+      <p class="lede">
+        上传一张猫咪照片，本地分析出毛色、花纹、脸型、耳型、胖瘦与眼睛颜色，
+        生成一只会打字、会看向你的桌面宠物 —— 2D 与 3D 同时生效。
+        全程离线，图片不上传。
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/quark10086/kurocat-photo-studio/releases/latest">下载安装包</a>
+        <a class="btn" href="https://github.com/quark10086/kurocat-photo-studio">查看源码</a>
+        <a class="btn" href="https://github.com/qianyiai/kurocat">上游项目</a>
+      </div>
+      <div class="meta">
+        <span><b>v5.1.3</b> photo build</span>
+        <span><b>0</b> 张图片上传</span>
+        <span><b>2D + 3D</b> 双渲染</span>
+        <span><b>MIT</b> 许可</span>
+      </div>
+    </div>
+    <div class="shot">
+      <img src="./assets/studio.png" alt="猫咪工坊：上传照片后生成的预览与可调参数" />
+    </div>
+  </header>
+
+  <section>
+    <h2>从照片到桌宠，四步</h2>
+    <p class="sub">算法是「参数化复刻」：不是把照片贴上去，而是推断出一组外观参数，交给原有渲染器。</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>取色</h3><p>缩到 168px，做确定性 k-means，得到 6 个主色。</p></div>
+      <div class="step"><div class="n">2</div><h3>去背景</h3><p>用外圈 15% 环带判断背景簇，绿墙、白墙、木桌都能剔掉。</p></div>
+      <div class="step"><div class="n">3</div><h3>认特征</h3><p>推花纹（纯色/双色/燕尾/虎斑/三花/重点色）、眼睛与鼻子颜色。</p></div>
+      <div class="step"><div class="n">4</div><h3>出参数</h3><p>由轮廓长宽比推脸型、耳型与胖瘦，生成可微调的配置。</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>生成之后</h2>
+    <p class="sub">八项参数随手改，改完即时预览，保存即换装。</p>
+    <div class="gallery">
+      <figure>
+        <img src="./assets/pet-3d.png" alt="3D 桌宠" />
+        <figcaption>3D 渲染：同一份配置驱动 three.js 版本</figcaption>
+      </figure>
+      <figure>
+        <img src="./assets/pet-2d.png" alt="2D 桌宠" />
+        <figcaption>2D 渲染：Canvas 2D 手绘风格</figcaption>
+      </figure>
+      <figure>
+        <img src="./assets/menu.png" alt="右键菜单中的入口" />
+        <figcaption>入口在右键菜单「角色外观」里</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>下载</h2>
+    <p class="sub">最新版本：<a href="https://github.com/quark10086/kurocat-photo-studio/releases/latest">v5.1.3-photo</a>。安装包由 GitHub Actions 在三个平台原生构建。</p>
+    <div class="dl">
+      <div class="card">
+        <h3>Windows 10 / 11</h3>
+        <span class="tag">x64 · NSIS 安装包</span>
+        <ul><li>需要 WebView2（Win11 自带）</li><li>安装包请放在<b>不含中文</b>的路径下运行</li></ul>
+        <a class="btn primary" href="https://github.com/quark10086/kurocat-photo-studio/releases/latest">下载 .exe</a>
+      </div>
+      <div class="card">
+        <h3>macOS 10.15+</h3>
+        <span class="tag">Universal（Intel + Apple Silicon）</span>
+        <ul><li>ad hoc 签名，首次打开需右键 →「打开」</li><li>或执行 <code>xattr -dr com.apple.quarantine</code></li></ul>
+        <a class="btn primary" href="https://github.com/quark10086/kurocat-photo-studio/releases/latest">下载 .dmg</a>
+      </div>
+      <div class="card">
+        <h3>Linux</h3>
+        <span class="tag">amd64 / arm64</span>
+        <ul><li>AppImage 免安装</li><li>也可用 .deb</li></ul>
+        <a class="btn primary" href="https://github.com/quark10086/kurocat-photo-studio/releases/latest">下载</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>从源码构建</h2>
+    <p class="sub">Node 18+、Rust stable、Tauri 2 系统依赖。</p>
+<pre>npm ci
+npm run build
+npm run tauri:build -- --bundles nsis   # Windows 安装包
+
+# 网络受限时，让打包工具走镜像
+$env:TAURI_BUNDLER_TOOLS_GITHUB_MIRROR = "https://gh-proxy.com/https://github.com"</pre>
+    <div class="note">
+      默认的 <code>npm run tauri:build</code> 会打包 MSI 并从 GitHub 下载 WiX，网络受限时会以
+      <code>failed to bundle project: timeout: global</code> 失败 —— 此时 exe 其实已生成，加
+      <code>--bundles nsis</code> 即可绕开。
+    </div>
+  </section>
+
+  <footer>
+    <p><b>KuroCat Photo Studio</b> 是 <a href="https://github.com/qianyiai/kurocat">qianyiai/kurocat</a> 的衍生项目，遵循 MIT 许可，保留上游版权声明。新增的「照片生成形象」部分由本项目作者编写。</p>
+    <p>算法是启发式推断，不是图像识别模型：背景与毛色接近时可能需要手动改一下毛色；虎斑条纹与重点色可能被认成纯色或双色。</p>
+    <p>本页面上所有截图都来自真实的 Windows 构建，未做渲染美化。</p>
+  </footer>
+
+</div>
+</body>
+</html>
