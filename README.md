@@ -2,6 +2,9 @@
 
 > 选一张猫咪照片，它就会坐到你桌面上 —— 2D 和 3D 都是同一只。
 
+**项目主页：<https://quark10086.github.io/kurocat-photo-studio/>** ·
+**下载：<https://github.com/quark10086/kurocat-photo-studio/releases/latest>**
+
 **这是一个衍生项目（derivative work）。** 上游原创项目是
 [qianyiai/kurocat](https://github.com/qianyiai/kurocat)（MIT，Copyright © 2026 KuroCat Contributors）。
 本仓库在完整保留上游代码的基础上，新增了「从图片创建我的猫」能力，并把说明改成以新功能为中心。
