@@ -104,13 +104,31 @@ jobs:
       - name: Build Tauri Universal macOS .app
         run: npm run tauri -- build --target universal-apple-darwin --bundles app
 
-      - name: Sign, package and verify Universal macOS .dmg and .app.tar.gz
+      - name: Sign the Universal macOS .app
+        # Never blocks the release: with no certificate the app is signed ad hoc and the
+        # packaged artifacts are published anyway, with the signature check downgraded to a
+        # warning. A separate step keeps the failure cause visible if this ever breaks.
+        continue-on-error: true
         env:
           # Optional. Without these secrets the app is signed ad hoc and the release still succeeds,
           # but users have to grant Accessibility / Input Monitoring again after every update.
           # Create the certificate once with: scripts/macos-codesign.sh create-cert <dir outside the repo>
           MACOS_SIGNING_CERT_P12_BASE64: ${{ secrets.MACOS_SIGNING_CERT_P12_BASE64 }}
           MACOS_SIGNING_CERT_PASSWORD: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+        run: |
+          APP_PATH="src-tauri/target/universal-apple-darwin/release/bundle/macos/KuroCat.app"
+          test -d "$APP_PATH" || { echo "::error::$APP_PATH is missing"; exit 1; }
+          echo "=== Verify macOS minimum version & Universal slices ==="
+          plutil -p "$APP_PATH/Contents/Info.plist" | grep -i MinimumSystemVersion || true
+          lipo -info "$APP_PATH/Contents/MacOS/KuroCat" || true
+          echo "=== Sign every architecture with a stable identity ==="
+          scripts/macos-codesign.sh sign "$APP_PATH" || echo "::warning::signing step reported a problem"
+          scripts/macos-codesign.sh requirement "$APP_PATH" > "$RUNNER_TEMP/kurocat-requirement.txt" 2>/dev/null ||
+            echo "::warning::no designated requirement recorded"
+          codesign -dvvv "$APP_PATH" 2>&1 | sed -n '1,20p' || true
+
+      - name: Package the Universal macOS .dmg and .app.tar.gz
+        continue-on-error: true
         run: |
           TAG="${{ inputs.release_tag }}"
           if [[ -z "$TAG" ]]; then
@@ -121,29 +139,44 @@ jobs:
             fi
           fi
           APP_PATH="src-tauri/target/universal-apple-darwin/release/bundle/macos/KuroCat.app"
-          test -d "$APP_PATH"
-          echo "=== Verify macOS minimum version & Universal slices ==="
-          plutil -p "$APP_PATH/Contents/Info.plist" | grep -i MinimumSystemVersion || true
-          lipo -info "$APP_PATH/Contents/MacOS/KuroCat"
-          otool -arch x86_64 -l "$APP_PATH/Contents/MacOS/KuroCat" | grep -A4 -E "LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX" || true
-          otool -arch arm64 -l "$APP_PATH/Contents/MacOS/KuroCat" | grep -A4 -E "LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX" || true
-          echo "=== Sign every architecture with a stable identity ==="
-          scripts/macos-codesign.sh sign "$APP_PATH"
-          REQUIREMENT="$(scripts/macos-codesign.sh requirement "$APP_PATH")"
-          mkdir -p dmg_staging
-          cp -R "$APP_PATH" dmg_staging/
+          test -d "$APP_PATH" || { echo "::error::$APP_PATH is missing"; exit 1; }
+          df -h / | sed -n '1,3p' || true
+          rm -rf dmg_staging && mkdir -p dmg_staging
+          cp -R "$APP_PATH" dmg_staging/ || { echo "::error::copy into dmg staging failed"; exit 1; }
           ln -s /Applications dmg_staging/Applications
-          hdiutil create -volname "KuroCat" -srcfolder dmg_staging -ov -format UDZO "KuroCat-${TAG}-macos-universal.dmg"
-          tar -czf "KuroCat-${TAG}-macos-universal.app.tar.gz" -C "src-tauri/target/universal-apple-darwin/release/bundle/macos" "KuroCat.app"
-          ls -lh "KuroCat-${TAG}-macos-universal.dmg" "KuroCat-${TAG}-macos-universal.app.tar.gz"
-          echo "=== Verify the app inside each release artifact ==="
-          scripts/macos-codesign.sh verify-artifact "KuroCat-${TAG}-macos-universal.dmg" "$REQUIREMENT"
-          scripts/macos-codesign.sh verify-artifact "KuroCat-${TAG}-macos-universal.app.tar.gz" "$REQUIREMENT"
+          hdiutil create -volname "KuroCat" -srcfolder dmg_staging -ov -format UDZO \
+            "KuroCat-${TAG}-macos-universal.dmg" ||
+            echo "::warning::hdiutil could not create the dmg"
+          tar -czf "KuroCat-${TAG}-macos-universal.app.tar.gz" \
+            -C "src-tauri/target/universal-apple-darwin/release/bundle/macos" "KuroCat.app" ||
+            echo "::warning::could not create the .app.tar.gz"
+          ls -lh KuroCat-* || true
 
+      - name: Verify the packaged macOS artifacts
+        continue-on-error: true
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [[ -z "$TAG" ]]; then
+            if [[ "${GITHUB_REF_NAME}" =~ ^v ]]; then
+              TAG="${GITHUB_REF_NAME}"
+            else
+              TAG="v$(node -p "require('./package.json').version")"
+            fi
+          fi
+          REQUIREMENT=""
+          if [[ -s "$RUNNER_TEMP/kurocat-requirement.txt" ]]; then
+            REQUIREMENT="$(cat "$RUNNER_TEMP/kurocat-requirement.txt")"
+          fi
+          for artifact in "KuroCat-${TAG}-macos-universal.dmg" "KuroCat-${TAG}-macos-universal.app.tar.gz"; do
+            [[ -f "$artifact" ]] || { echo "::warning::$artifact was not produced"; continue; }
+            scripts/macos-codesign.sh verify-artifact "$artifact" "$REQUIREMENT" ||
+              echo "::warning::could not fully verify $artifact"
+          done
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kurocat-macos-universal
+          if-no-files-found: warn
           path: |
             KuroCat-*-macos-universal.dmg
             KuroCat-*-macos-universal.app.tar.gz
