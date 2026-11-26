@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KuroCat OBS Browser Source</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      #obs-canvas,
+      #obs-canvas-3d {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: transparent !important;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .agent-bubble {
+        position: fixed;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 88vw;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: rgba(20, 22, 28, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #f3f5fa;
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.34);
+        z-index: 50;
+      }
+      .agent-bubble[data-tone='working'] { border-color: rgba(200, 245, 56, 0.65); color: #e9ff9b; }
+      .agent-bubble[data-tone='thinking'] { border-color: rgba(114, 196, 255, 0.65); color: #cdeaff; }
+      .agent-bubble[data-tone='waiting'] { border-color: rgba(255, 191, 71, 0.75); color: #ffe09e; }
+      .agent-bubble[data-tone='done'] { border-color: rgba(110, 231, 154, 0.75); color: #c7ffd9; }
+      .agent-bubble[data-tone='error'] { border-color: rgba(255, 102, 102, 0.78); color: #ffc5c5; }
+    </style>
+  </head>
+  <body>
+    <canvas id="obs-canvas" aria-label="KuroCat OBS Transparent Source"></canvas>
+    <canvas id="obs-canvas-3d" class="hidden" aria-label="KuroCat OBS 3D Transparent Source"></canvas>
+    <div id="agent-bubble" class="agent-bubble hidden" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/obsMain.ts"></script>
+  </body>
+</html>

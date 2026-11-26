@@ -1,0 +1,8 @@
+<resources>
+    <color name="bg_obsidian">#0B0E15</color>
+    <color name="bg_card">#141824</color>
+    <color name="accent_lime">#C8F538</color>
+    <color name="accent_cyan">#5CC8FF</color>
+    <color name="text_primary">#F4F6FA</color>
+    <color name="text_secondary">#99A6BE</color>
+</resources>

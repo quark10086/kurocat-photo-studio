@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.KuroCat" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_lime</item>
+        <item name="colorOnPrimary">@color/bg_obsidian</item>
+        <item name="colorSecondary">@color/accent_cyan</item>
+        <item name="android:windowBackground">@color/bg_obsidian</item>
+        <item name="android:statusBarColor">@color/bg_obsidian</item>
+        <item name="android:navigationBarColor">@color/bg_obsidian</item>
+    </style>
+</resources>

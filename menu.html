@@ -1,0 +1,459 @@
+﻿<!doctype html>
+<html lang="zh-CN" class="menu-window-mode">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KuroCat Menu</title>
+  </head>
+  <body class="menu-window-body">
+    <div id="context-menu" class="context-menu floating-side-menu tab-menu-layout scheme-a-menu">
+      <!-- Top Bar -->
+      <div class="menu-header-row">
+        <div class="menu-header" id="menu-header">🐈‍⬛ KuroCat 小黑猫</div>
+        <div class="menu-header-actions">
+          <button
+            class="header-icon-btn"
+            id="btn-header-lock"
+            data-action="toggle-lock"
+            type="button"
+            data-i18n-title="menu.toggle_lock"
+            title="锁定鼠标穿透（Alt 解锁）"
+            aria-label="Click-through lock"
+          >
+            <svg class="icon-unlocked" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="4" y="11" width="16" height="10" rx="2.5"></rect>
+              <path d="M8 11V7a4 4 0 0 1 7.6-1.7"></path>
+            </svg>
+            <svg class="icon-locked" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="4" y="11" width="16" height="10" rx="2.5"></rect>
+              <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+            </svg>
+          </button>
+          <button
+            class="menu-close-btn"
+            id="btn-close-menu"
+            type="button"
+            data-i18n-title="menu.close_title"
+            title="关闭菜单 (Esc)"
+            aria-label="Close"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-Tab Segmented Bar -->
+      <div class="menu-tabs menu-tabs-3" role="tablist" aria-label="Settings">
+        <button class="menu-tab-btn active" data-tab="appearance" type="button" role="tab" aria-selected="true">
+          <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l1.9 4.6L19 9.5l-4.2 3.1L16 17.8 12 15l-4 2.8 1.2-5.2L5 9.5l5.1-1.9L12 3z"></path>
+          </svg>
+          <span data-i18n="menu.tab_looks">外观</span>
+        </button>
+        <button class="menu-tab-btn" data-tab="interact" type="button" role="tab" aria-selected="false">
+          <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="2.5"></rect>
+            <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"></path>
+          </svg>
+          <span data-i18n="menu.tab_interact">互动</span>
+        </button>
+        <button class="menu-tab-btn" data-tab="system" type="button" role="tab" aria-selected="false">
+          <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <circle cx="9" cy="7" r="2"></circle>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+            <circle cx="15" cy="17" r="2"></circle>
+          </svg>
+          <span data-i18n="menu.tab_sys">系统</span>
+        </button>
+      </div>
+
+      <div class="tab-body" id="menu-tab-body">
+        <!-- Tab 1: Appearance (Looks, Scale, Style) -->
+        <div class="tab-panel" data-tab-panel="appearance">
+          <!-- Card 1: Breeds -->
+          <section class="menu-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.section_breed">角色外观</span>
+              <span class="card-chip" data-i18n-title="menu.breed_mcp_title" title="支持通过 MCP 让 AI 定制专属外观">MCP</span>
+            </div>
+            <div class="breed-chips" id="breed-pills"></div>
+            <button class="studio-open-btn" id="btn-open-cat-studio" type="button">
+              <span class="studio-open-icon" aria-hidden="true">📷</span>
+              <span class="studio-open-label" data-i18n="menu.studio_open">从图片创建我的猫</span>
+            </button>
+          </section>
+
+          <!-- Card 2: Pet Scale (High-frequency, moved right into Looks!) -->
+          <section class="menu-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.scale_label">尺寸缩放</span>
+              <button
+                class="scale-value-btn"
+                id="scale-value"
+                type="button"
+                data-i18n-title="menu.scale_reset_title"
+                title="点击复位 100%"
+              >100%</button>
+            </div>
+            <div class="scale-slider-wrap">
+              <input
+                type="range"
+                id="scale-slider"
+                class="scale-slider"
+                min="20"
+                max="150"
+                step="1"
+                value="100"
+              />
+              <div class="scale-ticks">
+                <span>20%</span>
+                <span class="scale-tick-mid">100%</span>
+                <span>150%</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Card 3: Style & Visual Engine (Single-row inline controls) -->
+          <section class="menu-card" id="style-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.section_style">装扮与画面</span>
+            </div>
+
+            <div class="setting-row" id="render-mode-row">
+              <span class="setting-label" data-i18n="menu.render_mode_short">渲染模式</span>
+              <div class="seg-control seg-2">
+                <button
+                  class="seg-btn active"
+                  data-rendermode="3d"
+                  data-i18n="menu.render_3d_short"
+                  data-i18n-title="menu.render_3d_title"
+                  type="button"
+                  title="Three.js 真 3D 体积光影手办"
+                >3D 立体</button>
+                <button
+                  class="seg-btn"
+                  data-rendermode="2d"
+                  data-i18n="menu.render_2d_short"
+                  data-i18n-title="menu.render_2d_title"
+                  type="button"
+                  title="经典 2D 矢量手绘，极简省电"
+                >2D 经典</button>
+              </div>
+            </div>
+
+            <div class="setting-row" id="collar-row">
+              <span class="setting-label" data-i18n="menu.collar_short">项圈铃铛</span>
+              <div class="collar-swatches" role="radiogroup" aria-label="Collar color">
+                <button class="collar-swatch swatch-none active" data-collar="none" data-i18n-title="menu.collar_none" title="无" aria-label="None" type="button"></button>
+                <button class="collar-swatch swatch-red" data-collar="red" data-i18n-title="menu.collar_red" title="红" aria-label="Red" type="button"></button>
+                <button class="collar-swatch swatch-blue" data-collar="blue" data-i18n-title="menu.collar_blue" title="蓝" aria-label="Blue" type="button"></button>
+                <button class="collar-swatch swatch-pink" data-collar="pink" data-i18n-title="menu.collar_pink" title="粉" aria-label="Pink" type="button"></button>
+                <button class="collar-swatch swatch-green" data-collar="green" data-i18n-title="menu.collar_green" title="绿" aria-label="Green" type="button"></button>
+              </div>
+            </div>
+
+            <div class="setting-row" id="headphone-row">
+              <span class="setting-label" data-i18n="menu.headphone_short">电竞耳机</span>
+              <div class="seg-control seg-3">
+                <button class="seg-btn active" data-headphonemode="off" data-i18n="menu.headphone_off" type="button">关闭</button>
+                <button class="seg-btn" data-headphonemode="auto" data-i18n="menu.headphone_auto_short" type="button">自动</button>
+                <button class="seg-btn" data-headphonemode="on" data-i18n="menu.headphone_on_short" type="button">常戴</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Card 4: Typing & Mouse Sound (Default OFF, visible on Tab 1 for all pets) -->
+          <section class="menu-card" id="typing-sound-card">
+            <button class="toggle-row" data-action="toggle-typing-sound" type="button" role="switch" aria-checked="false" id="sw-typing-sound">
+              <span class="toggle-label" data-i18n="menu.toggle_typing_sound">打字键鼠音效</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+          </section>
+        </div>
+
+        <!-- Tab 2: Interaction (Keyboard, Tail, Companion Toggles) -->
+        <div class="tab-panel hidden" data-tab-panel="interact">
+          <!-- Card 1: Keyboard & Tail -->
+          <section class="menu-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.section_keyboard">键盘与尾巴</span>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label" data-i18n="menu.kb_layout_short">键盘配列</span>
+              <div class="seg-control seg-2">
+                <button class="seg-btn active" data-kblayout="65" data-i18n="menu.kb_65_short" type="button">65% 紧凑</button>
+                <button class="seg-btn" data-kblayout="108" data-i18n="menu.kb_108_short" type="button">108 全尺寸</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label" data-i18n="menu.kb_orient_short">朝向视角</span>
+              <div class="seg-control seg-2">
+                <button class="seg-btn active" data-kborient="cat" data-i18n="menu.kb_cat" type="button">面向猫咪</button>
+                <button class="seg-btn" data-kborient="viewer" data-i18n="menu.kb_viewer" type="button">面向观众</button>
+              </div>
+            </div>
+
+            <div class="card-divider"></div>
+
+            <div class="tail-section">
+              <div class="card-head">
+                <span class="setting-label" data-i18n="menu.tail_label">尾巴拍键模式</span>
+                <span class="tail-mode-badge" id="tail-mode-badge">智能第三只手</span>
+              </div>
+              <div class="seg-control seg-4">
+                <button class="seg-btn active" data-tailmode="smart" data-i18n="menu.tail_smart" type="button">智能</button>
+                <button class="seg-btn" data-tailmode="custom" data-i18n="menu.tail_custom" type="button">自定义</button>
+                <button class="seg-btn" data-tailmode="edge" data-i18n="menu.tail_edge" type="button">边缘</button>
+                <button class="seg-btn" data-tailmode="off" data-i18n="menu.tail_off" type="button">关闭</button>
+              </div>
+              <button class="tail-pick-trigger hidden" data-action="open-tail-picker" id="btn-open-tail-picker" type="button">
+                <span data-i18n="menu.tail_pick_btn">🐾 在键盘上点选尾巴按键</span>
+                <span class="menu-hint" id="tail-keys-count">4 键</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- Card 2: Companion Toggles -->
+          <section class="menu-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.section_companion">陪伴与防误触</span>
+            </div>
+
+            <button class="toggle-row" data-action="toggle-privacy" type="button" role="switch" aria-checked="true" id="sw-privacy">
+              <span class="toggle-label" data-i18n="menu.toggle_privacy">输密码自动闭眼防偷窥</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+
+            <button class="toggle-row" data-action="toggle-bubbles" type="button" role="switch" aria-checked="true" id="sw-bubbles">
+              <span class="toggle-label" data-i18n="menu.toggle_bubbles">悬浮按键气泡</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+
+            <button class="toggle-row" data-action="toggle-sound" type="button" role="switch" aria-checked="true" id="sw-sound">
+              <span class="toggle-label" data-i18n="menu.toggle_sound">摸头呼噜声</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+
+            <button class="toggle-row" data-action="toggle-lock" type="button" role="switch" aria-checked="false" id="sw-lock">
+              <span class="toggle-label-wrap">
+                <span class="toggle-label" data-i18n="menu.toggle_lock_short">鼠标穿透锁定</span>
+                <kbd class="kbd-chip" id="lock-kbd">Alt</kbd>
+              </span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+          </section>
+        </div>
+
+        <!-- Tab 3: System, AI/MCP & OBS -->
+        <div class="tab-panel hidden" data-tab-panel="system">
+          <!-- Card 1: General Settings -->
+          <section class="menu-card">
+            <div class="card-head">
+              <span class="card-title" data-i18n="menu.section_general">常规设置</span>
+            </div>
+
+            <button class="toggle-row" data-action="toggle-top" type="button" role="switch" aria-checked="true" id="sw-top">
+              <span class="toggle-label" data-i18n="menu.toggle_top">始终置顶显示</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+
+            <button class="toggle-row" data-action="toggle-autostart" type="button" role="switch" aria-checked="false" id="sw-autostart">
+              <span class="toggle-label" data-i18n="menu.toggle_autostart">开机自动启动</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+
+            <div class="setting-row">
+              <span class="setting-label" data-i18n="menu.fps_short">帧率上限</span>
+              <div class="seg-control seg-2">
+                <button class="seg-btn active" data-fpscap="0" data-i18n="menu.fps_auto" type="button">60 流畅</button>
+                <button class="seg-btn" data-fpscap="30" data-i18n="menu.fps_eco" type="button">30 省电</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <label class="setting-label" for="lang-select" data-i18n="menu.lang_short">界面语言</label>
+              <div class="select-wrap">
+                <select class="lang-select" id="lang-select">
+                  <option value="auto" data-i18n="menu.lang_auto">跟随系统</option>
+                  <option value="zh-CN">简体中文</option>
+                  <option value="zh-TW">繁體中文</option>
+                  <option value="en-US">English</option>
+                  <option value="ja-JP">日本語</option>
+                  <option value="ko-KR">한국어</option>
+                </select>
+                <svg class="select-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6"></path>
+                </svg>
+              </div>
+            </div>
+
+            <div class="sys-action-row" id="sys-action-row">
+              <button class="sub-action-btn" data-action="reset-pos" type="button" data-i18n-title="menu.reset_pos" title="重置位置到右下角">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                  <path d="M3 3v5h5"></path>
+                </svg>
+                <span data-i18n="menu.reset_pos_short">重置位置</span>
+              </button>
+              <button class="sub-action-btn" data-action="desktop-shortcut" id="btn-desktop-shortcut" type="button" data-i18n-title="menu.desktop_shortcut" title="创建桌面图标">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                <span id="shortcut-hint" data-i18n="menu.desktop_shortcut_short">桌面图标</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- Card 2: AI & MCP Integration (Auto-expands when enabled) -->
+          <section class="menu-card collapsible-card" id="mcp-card">
+            <button class="toggle-row card-toggle-head" data-action="toggle-mcp" type="button" role="switch" aria-checked="true" id="sw-mcp">
+              <span class="toggle-label-wrap">
+                <svg class="section-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                </svg>
+                <span class="toggle-label" data-i18n="menu.section_mcp">AI 与 MCP 扩展</span>
+              </span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+            <div class="collapsible-body" id="mcp-card-body">
+              <div class="mcp-copy-row">
+                <button class="mcp-copy-btn" data-action="copy-mcp" id="btn-copy-mcp" type="button">
+                  <span id="mcp-copy-hint" data-i18n="menu.copy_mcp">复制 MCP 配置</span>
+                </button>
+                <button class="mcp-copy-btn" data-action="copy-hooks" id="btn-copy-hooks" type="button">
+                  <span id="hooks-copy-hint" data-i18n="menu.copy_hooks">发给 AI 自动配置</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Card 3: OBS Transparent Source (Collapsed when off, expands when enabled) -->
+          <section class="menu-card collapsible-card" id="obs-card">
+            <button class="toggle-row card-toggle-head" data-action="toggle-obs" type="button" role="switch" aria-checked="false" id="sw-obs">
+              <span class="toggle-label-wrap">
+                <svg class="section-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                </svg>
+                <span class="toggle-label" data-i18n="menu.section_obs">OBS 透明直播源</span>
+                <span class="port-pill hidden" id="obs-port-pill">:27421</span>
+              </span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </button>
+            <div class="collapsible-body hidden" id="obs-card-body">
+              <button class="sub-action-btn obs-copy-full" data-action="copy-obs" id="btn-copy-obs" type="button">
+                <span data-i18n="menu.copy_obs_short">复制透明源地址</span>
+                <span class="menu-hint" id="obs-copy-hint" data-i18n="menu.obs_hint">免抠像</span>
+              </button>
+              <button class="toggle-row sub-toggle-row" data-action="toggle-obs-hide" type="button" role="switch" aria-checked="false" id="sw-obs-hide">
+                <span class="toggle-label" data-i18n="menu.obs_hide_pet">仅 OBS 显示（隐藏桌面猫）</span>
+                <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Fixed Bottom Footer -->
+      <div class="tab-footer">
+        <button class="footer-btn" data-action="check-update" id="btn-check-update" type="button">
+          <span id="update-hint">检查更新 v5.1.3</span>
+        </button>
+        <button class="footer-btn danger" data-action="quit" data-i18n="menu.quit" type="button">退出</button>
+      </div>
+    </div>
+
+      <!-- Cat Studio: photo → editable 2D/3D pet skin -->
+      <div class="cat-studio hidden" id="cat-studio" role="dialog" aria-modal="true">
+        <div class="studio-head">
+          <span class="studio-title" data-i18n="menu.studio_title">猫咪工坊</span>
+          <span class="studio-badge" id="studio-confidence"></span>
+          <button class="studio-close" id="studio-close" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="studio-scroll">
+          <div class="studio-stage">
+            <canvas id="studio-canvas" width="220" height="236"></canvas>
+            <div class="studio-source-wrap">
+              <img class="studio-source" id="studio-source" alt="" />
+              <span class="studio-source-tag" data-i18n="menu.studio_source">原图</span>
+            </div>
+          </div>
+          <div class="studio-fields">
+            <label class="studio-field">
+              <span data-i18n="menu.studio_name">名字</span>
+              <input id="studio-name" type="text" maxlength="24" />
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_fur">毛色</span>
+              <input id="studio-fur" type="color" />
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_belly">腹部 / 花纹色</span>
+              <input id="studio-belly" type="color" />
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_pattern">花纹</span>
+              <select id="studio-pattern">
+                <option value="solid" data-i18n="menu.pattern_solid">纯色</option>
+                <option value="bicolor" data-i18n="menu.pattern_bicolor">双色</option>
+                <option value="tuxedo" data-i18n="menu.pattern_tuxedo">奶牛/燕尾</option>
+                <option value="tabby" data-i18n="menu.pattern_tabby">虎斑</option>
+                <option value="calico" data-i18n="menu.pattern_calico">三花</option>
+                <option value="siamese" data-i18n="menu.pattern_siamese">重点色</option>
+              </select>
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_face">脸型</span>
+              <select id="studio-face">
+                <option value="round" data-i18n="menu.face_round">圆脸</option>
+                <option value="square" data-i18n="menu.face_square">方脸</option>
+                <option value="wide" data-i18n="menu.face_wide">宽脸</option>
+                <option value="fox" data-i18n="menu.face_fox">狐狸脸</option>
+                <option value="oval" data-i18n="menu.face_oval">瓜子脸</option>
+              </select>
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_ear">耳型</span>
+              <select id="studio-ear">
+                <option value="cat" data-i18n="menu.ear_cat">标准</option>
+                <option value="round" data-i18n="menu.ear_round">圆耳</option>
+                <option value="tall" data-i18n="menu.ear_tall">尖长耳</option>
+                <option value="small" data-i18n="menu.ear_small">小耳</option>
+                <option value="wide" data-i18n="menu.ear_wide">宽耳</option>
+              </select>
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_eye">眼睛颜色</span>
+              <input id="studio-eye" type="color" />
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_chubby">胖瘦</span>
+              <input id="studio-chubby" type="range" min="85" max="120" step="1" />
+            </label>
+            <label class="studio-field">
+              <span data-i18n="menu.studio_squint">眼睛眯度</span>
+              <input id="studio-squint" type="range" min="0" max="70" step="1" />
+            </label>
+          </div>
+        </div>
+        <div class="studio-foot">
+          <button class="studio-btn ghost" id="studio-repick" type="button" data-i18n="menu.studio_repick">
+            换一张
+          </button>
+          <button class="studio-btn primary" id="studio-save" type="button" data-i18n="menu.studio_save">
+            保存并应用
+          </button>
+        </div>
+        <div class="studio-status" id="studio-status" role="status"></div>
+      </div>
+
+      <input type="file" id="studio-file" accept="image/*" hidden />
+
+    <script type="module" src="/src/menuMain.ts"></script>
+  </body>
+</html>
