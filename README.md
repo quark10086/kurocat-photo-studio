@@ -64,9 +64,19 @@ Rust 侧只加了两个 Tauri 命令（`save_custom_cat`、`set_cat_studio_open`
 
 | 平台 | 状态 | 说明 |
 | --- | --- | --- |
-| Windows 10 / 11 (x64) | ✅ 已实机跑通 | 本仓库的构建与全部截图都在 Windows 11 + WebView2 上完成 |
-| macOS 10.15+ (Intel / Apple Silicon) | ✅ 代码层面已确认，未实机验证 | 见下方「跨平台确认」 |
-| Linux (webkit2gtk) | ⚠️ 未验证 | 上游支持，本功能无平台相关代码 |
+| Windows 10 / 11 (x64) | ✅ 已实机跑通 | 本仓库的构建与全部截图都在 Windows 11 + WebView2 上完成；Release 里的安装包实测可装、可跑、可卸 |
+| macOS 10.15+ (Intel / Apple Silicon) | ✅ 官方 CI 已产出 Universal 安装包（ad hoc 签名） | 见下方「跨平台确认」与「macOS 安装提示」；未在真机上人工点过 |
+| Linux (webkit2gtk) | ✅ CI 已产出 AppImage + deb | 上游支持，本功能无平台相关代码 |
+
+### macOS 安装提示
+
+Release 里的 `.dmg` 是 **ad hoc 签名**（没有 Apple 开发者证书），首次打开会被 Gatekeeper 拦下，
+提示「无法验证开发者」。两种正常打开方式：
+
+1. 在 `应用程序` 里右键点 KuroCat → 选择「打开」→ 再点一次「打开」；
+2. 或者执行 `xattr -dr com.apple.quarantine /Applications/KuroCat.app` 后再双击。
+
+这不影响功能，只影响首次启动的那一次确认。
 
 ### 跨平台确认（说明依据，不夸大）
 

@@ -57,9 +57,19 @@ cannot hide the side menu through the existing focus-lost handler.
 
 | Platform | Status | Notes |
 | --- | --- | --- |
-| Windows 10 / 11 (x64) | ✅ verified on hardware | Built, installed and tested on Windows 11 + WebView2 |
-| macOS 10.15+ (Intel / Apple Silicon) | ✅ verified at code level, not on hardware | see below |
-| Linux (webkit2gtk) | ⚠️ unverified | upstream supports it; this feature has no platform-specific code |
+| Windows 10 / 11 (x64) | ✅ verified on hardware | Built, installed, run and uninstalled on Windows 11 + WebView2 |
+| macOS 10.15+ (Intel / Apple Silicon) | ✅ Universal `.dmg` published by CI (ad hoc signature) | see below; not hand-tested on a Mac |
+| Linux (webkit2gtk) | ✅ AppImage + deb published by CI | upstream supports it; this feature has no platform-specific code |
+
+### macOS install note
+
+The published `.dmg` is **ad hoc signed** (no Apple Developer certificate), so Gatekeeper blocks the first launch
+with "cannot verify the developer". Open it either way:
+
+1. right-click KuroCat in `Applications` → **Open** → **Open** again, or
+2. run `xattr -dr com.apple.quarantine /Applications/KuroCat.app` and then double-click.
+
+This only affects the very first launch.
 
 Why macOS is expected to work: the added Rust code uses only `std` and public Tauri APIs, with no
 `windows-sys` / `objc2` / `cfg` branches; the frontend uses standard Canvas 2D, `File`, `Image` and
