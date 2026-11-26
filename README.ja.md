@@ -1,3 +1,7 @@
+> **KuroCat Photo Studio** — 本仓库是 [qianyiai/kurocat](https://github.com/qianyiai/kurocat)（MIT）的衍生版本，
+> 新增了「从图片创建我的猫」能力。中文说明与新功能文档见 [README.md](README.md)，原创署名与差异清单见 [NOTICE.md](NOTICE.md)。
+> This repository is a derivative of KuroCat (MIT) with a photo-to-appearance feature.
+> See [README.md](README.md) (Chinese) and [NOTICE.md](NOTICE.md) for attribution.
 <div align="center">
   <img src="website/public/assets/kurocat-icon.png" alt="KuroCat" width="84" height="84" />
   <h1>KuroCat</h1>
