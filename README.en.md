@@ -99,10 +99,32 @@ so it stays a drop-in upgrade; the project name *KuroCat Photo Studio* is used f
 Requirements: Node 18+, Rust stable, Tauri 2 system dependencies (Windows: WebView2 + MSVC build tools).
 
 ```bash
-npm install
+npm ci
 npm run build          # tsc + vite
 npm run tauri:build    # executable + installer under src-tauri/target/release/bundle/
 ```
+
+### Behind a restricted network
+
+`npm run tauri:build` bundles an **MSI** by default, which makes Tauri download WiX from
+`github.com/wixtoolset/wix3`. If GitHub is unreachable the bundle step fails with
+`failed to bundle project: timeout: global` *after* `KuroCat.exe` has already been produced. Two workarounds:
+
+```powershell
+$env:TAURI_BUNDLER_TOOLS_GITHUB_MIRROR = "https://gh-proxy.com/https://github.com"
+npm run tauri:build -- --bundles nsis   # NSIS only: no WiX, smaller installer
+```
+
+Use `npm ci --registry=https://registry.npmmirror.com` if npm is slow, and a sparse crates.io mirror
+(e.g. `https://rsproxy.cn`) in `%USERPROFILE%\.cargo\config.toml` — keep exactly **one** `[source.*]`
+replacement, otherwise cargo reports `already defined`.
+
+### Running two builds side by side
+
+Only one instance per user is allowed (`Local\KuroCat.SingleInstance.Mutex`); a second launch hands over to the
+running instance and exits. To test another build in parallel, set both `WEBVIEW2_USER_DATA_FOLDER` and `APPDATA`
+to separate directories, otherwise the two processes fight over the same WebView2 profile and fail with
+`WebView2 error: 0x800700AA` ("the requested resource is in use").
 
 ---
 

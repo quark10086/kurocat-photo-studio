@@ -109,10 +109,34 @@ npm run tauri:dev     # 打开菜单 → 角色外观 → 从图片创建我的�
 前置：Node 18+、Rust stable、Tauri 2 对应平台的系统依赖（Windows 需 WebView2 与 MSVC Build Tools）。
 
 ```bash
-npm install
+npm ci
 npm run build          # tsc + vite
 npm run tauri:build    # 产出可执行文件与安装包
 ```
+
+### 网络受限时（中国大陆常见）
+
+`npm run tauri:build` 默认会打包 **MSI**，需要 Tauri 从 `github.com/wixtoolset/wix3` 下载 WiX；如果 GitHub
+不可达，会在 Rust 编译成功之后以 `failed to bundle project: timeout: global` 失败（此时 `KuroCat.exe`
+其实已经生成）。两个可用的绕法：
+
+```powershell
+# 1) 让 Tauri 的打包工具走镜像
+$env:TAURI_BUNDLER_TOOLS_GITHUB_MIRROR = "https://gh-proxy.com/https://github.com"
+
+# 2) 只出 NSIS 安装包（不走 WiX，体积也更小）
+npm run tauri:build -- --bundles nsis
+```
+
+npm 依赖慢时用 `npm ci --registry=https://registry.npmmirror.com`。Rust 依赖慢时在
+`%USERPROFILE%\.cargo\config.toml` 里把 crates.io 换成 sparse 镜像（例如 `https://rsproxy.cn`），
+注意**只能保留一个** `[source.*]` 替换项，否则 cargo 会报 `already defined`。
+
+### 本地跑起来注意
+
+同一个用户下只能有一个实例（`Local\KuroCat.SingleInstance.Mutex`）：第二次启动会把窗口交给已有实例后直接退出。
+如果要并行测试另一个构建，请同时指定 `WEBVIEW2_USER_DATA_FOLDER` 与 `APPDATA` 两个环境变量，
+否则两个进程会争用同一个 WebView2 配置目录，报 `WebView2 error: 0x800700AA`（请求的资源在使用中）。
 
 ---
 
