@@ -45,6 +45,10 @@
 
 以上互动在「声音开关关闭」「隐私模式（输密码）」「游戏模式」下自动静默。
 
+| 双猫交接 | 打字抗议 | 打哈欠 | 摸猫爱心 |
+| --- | --- | --- | --- |
+| ![handover](docs/screenshots/handover-two-cats.png) | ![anger](docs/screenshots/interaction-typing-anger.png) | ![yawn](docs/screenshots/interaction-yawn.png) | ![hearts](docs/screenshots/interaction-pet-hearts.png) |
+
 ---
 
 ## v5.2 系列新增
