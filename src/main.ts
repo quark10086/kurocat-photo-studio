@@ -23,6 +23,13 @@ import {
   type KeySpec,
 } from './keyboardLayout';
 import type { CollarColorId, KuroCatEngine3D } from './catEngine3d';
+type HandoverStyle = 'salute' | 'hiss' | 'ignore' | 'heart';
+const HANDOVER_COPY: Record<HandoverStyle, { emoji: string; text: string }> = {
+  salute: { emoji: '🫡', text: '交接完毕！' },
+  hiss: { emoji: '💢', text: '哼，让你了…' },
+  ignore: { emoji: '💤', text: '懒得理你…' },
+  heart: { emoji: '💗', text: '换岗快乐！' },
+};
 import {
   applyDomTranslations,
   isMacPlatform,
@@ -207,6 +214,9 @@ const IDLE_3D_DISPOSE_MS = 8000;
 let webgl3dUnavailable = false;
 let isWin7Ulw = false;
 let active3d = false;
+/** 换岗动效期间临时把桌宠切到 2D，播完再恢复原来的渲染模式 */
+let handoverForce2D = false;
+let handoverTimer = 0;
 let privacyActive = false;
 let gameActive = false;
 
@@ -343,6 +353,7 @@ function shouldWearHeadphonesNow(): boolean {
 
 function wants3DNow(): boolean {
   return (
+    !handoverForce2D &&
     settings.renderMode !== '2d' &&
     settings.catBreed !== 'dafeiyu' &&
     !tailPickerOpen &&
@@ -1218,17 +1229,26 @@ async function bootstrap(): Promise<void> {
     }
     lastKnownLockState = settings.clickThroughLocked;
     syncMenuUI();
-    // 换岗动效: 2D 走「旧猫退场 + 新猫接岗」的双猫交接，3D 走敬礼/爱心动作
+    // 换岗动效: 临时切到 2D 引擎，用同一套美术同时画新猫和旧猫，播完恢复 3D
     if (prevBreed && settings.catBreed && prevBreed !== settings.catBreed) {
-      const styles = ['salute', 'hiss', 'ignore', 'heart'] as const;
+      const styles: HandoverStyle[] = ['salute', 'hiss', 'ignore', 'heart'];
       const style = styles[Math.floor(Math.random() * styles.length)];
-      if (!active3d) {
-        engine.startHandover(
-          prevCat ? { breedId: prevBreed, skin: prevCat.builtin ? null : prevCat } : null,
-          style,
-        );
+      const copy = HANDOVER_COPY[style];
+      agentCompanion.playEmote(copy.emoji, copy.text);
+      window.clearTimeout(handoverTimer);
+      if (active3d) {
+        handoverForce2D = true;
+        activateRenderEngine();
       }
-      agentCompanion.playSwitchEmote();
+      engine.startHandover(
+        prevCat ? { breedId: prevBreed, skin: prevCat } : null,
+        style,
+        3000,
+      );
+      handoverTimer = window.setTimeout(() => {
+        handoverForce2D = false;
+        activateRenderEngine();
+      }, 3080);
     }
     if (prevLock !== null && prevLock !== settings.clickThroughLocked) {
       if (settings.clickThroughLocked) {

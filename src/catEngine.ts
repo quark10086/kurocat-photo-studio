@@ -3567,7 +3567,19 @@ export class KuroCatEngine {
     };
   }
 
-  /** Draws the outgoing cat behind the current one: slides left, tilts into a bow, fades out. */
+  /** 0..58px pan used to make room for the outgoing cat during a handover. */
+  private handoverPanAmount(): number {
+    const ho = this.handover;
+    if (!ho) return 0;
+    const t = (performance.now() - ho.startedAt) / ho.durationMs;
+    if (t <= 0 || t >= 1) return 0;
+    const enter = Math.min(1, t / 0.3);
+    const exit = Math.min(1, Math.max(0, (t - 0.66) / 0.34));
+    const eased = 1 - Math.pow(1 - enter, 3);
+    return 58 * eased * (1 - exit);
+  }
+
+  /** Draws the outgoing cat: glides in on the left, greets, then leaves and fades. */
   private drawHandoverGhost(ctx: CanvasRenderingContext2D, breath: number): void {
     const ho = this.handover;
     if (!ho) return;
@@ -3578,16 +3590,30 @@ export class KuroCatEngine {
     }
     if (t <= 0) return;
 
-    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const easeOut = (v: number): number => 1 - Math.pow(1 - v, 3);
+    const easeIn = (v: number): number => v * v * v;
+    const enter = Math.min(1, t / 0.3);
+    const hold = Math.min(1, Math.max(0, (t - 0.3) / 0.36));
+    const exit = Math.min(1, Math.max(0, (t - 0.66) / 0.34));
+
+    const enterX = -168 + 78 * easeOut(enter);
+    const x = enterX - 150 * easeIn(exit);
+    const alpha = exit > 0 ? 1 - easeIn(exit) : Math.min(1, enter * 1.6);
+    const bow = Math.sin(hold * Math.PI) * 0.09;
+
     const prevSkin = this.customSkin;
     const prevBreed = this.catBreed;
     this.catBreed = (ho.breedId === 'ragdoll' ? 'ragdoll' : 'black') as CatBreed;
     this.customSkin = ho.skin ? resolveCustomSkin(ho.skin) : null;
 
+    const pan = this.handoverPanAmount();
     ctx.save();
-    ctx.globalAlpha = Math.max(0, 1 - ease * 1.55);
-    ctx.translate(-148 * ease, -7 * Math.sin(ease * Math.PI));
-    ctx.rotate(-0.12 * ease);
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.translate(x - pan, -6 * Math.sin(hold * Math.PI));
+    ctx.translate(this.catCenterX, this.catBaseY);
+    ctx.scale(0.9, 0.9);
+    ctx.translate(-this.catCenterX, -this.catBaseY);
+    ctx.rotate(-bow);
     this.drawCatBody(ctx, breath, 0);
     ctx.restore();
     this.customSkin = prevSkin;
@@ -3595,11 +3621,12 @@ export class KuroCatEngine {
 
     const glyph =
       ho.style === 'hiss' ? '💢' : ho.style === 'heart' ? '💗' : ho.style === 'ignore' ? '💤' : '✨';
+    const glyphAlpha = Math.max(0, Math.min(1, hold * 2)) * (1 - exit);
     ctx.save();
-    ctx.globalAlpha = Math.max(0, 1 - t) * 0.95;
-    ctx.font = `${Math.round(20 + 6 * Math.sin(t * Math.PI))}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+    ctx.globalAlpha = glyphAlpha * 0.95;
+    ctx.font = `${Math.round(19 + 7 * Math.sin(hold * Math.PI))}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(glyph, this.catCenterX + 92 - 44 * ease, this.catTopY + 8);
+    ctx.fillText(glyph, this.catCenterX - 62 + pan * 0.5 + 6 * Math.sin(hold * Math.PI * 2), this.catTopY + 34);
     ctx.restore();
   }
 
@@ -3613,6 +3640,9 @@ export class KuroCatEngine {
     const { offsetX, offsetY, uniformScale } = this.getViewportTransform();
     ctx.translate(offsetX, offsetY);
     ctx.scale(uniformScale, uniformScale);
+    // during a handover the live cat sidles to the right so both cats fit side by side
+    const handoverPan = this.handoverPanAmount();
+    if (handoverPan) ctx.translate(handoverPan, 0);
 
     const breath = Math.sin(this.breathPhase) * (1.0 + this.sleepAmount * 0.65);
     const purrShift = this.squintAmount > 0.4 ? Math.sin(this.elapsed * 22) * 0.45 * this.squintAmount : 0;
