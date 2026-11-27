@@ -19,22 +19,30 @@
 新增文件：
 
 - `src/photoCat.ts` — 本地图片分析：缩放采样、确定性 k-means 取色、外圈 15% 边缘带背景剔除、
-  花纹/眼睛/脸型/耳型/胖瘦推断，输出 `CatSkinConfig`。
-- `src/catStudio.ts` — 「猫咪工坊」面板：选图、实时 2D 预览、8 项微调、保存并应用。
-- `docs/screenshots/*` — 功能截图。
+  分部位（头/躯干/腹/四肢/尾）取色、花纹/眼睛/脸型/耳型/胖瘦推断，输出 `CatSkinConfig`。
+- `src/catStudio.ts` — 「猫咪工坊」面板：选图、实时 2D 预览、简易/高级两档、8+ 项微调、保存并应用。
+- `src/catBreeds.ts` — 8 个品种预设、花纹亲缘矩阵与匹配打分。
+- `src/speciesBody.ts` — 蛇 / 鸡的 2D 形体绘制（含蛇尾、鸡爪与喙的动作）。
+- `src/mouseStyles.ts` — 8 款鼠标配色与按猫 id 的确定性分配。
+- `site/` — 项目落地页（GitHub Pages）。
+- `docs/screenshots/*`、`docs/release-notes/*` — 功能截图与发布说明。
 
 修改文件：
 
-- `menu.html` — 「角色外观」卡片内新增入口按钮，以及工坊面板的 DOM 结构。
-- `src/style.css` — 工坊与入口按钮样式。
-- `src/menuMain.ts` — 工坊初始化、入口点击、Esc 优先关闭工坊。
-- `src-tauri/src/lib.rs` — 新增 `save_custom_cat`、`set_cat_studio_open` 两个命令，以及
-  `studio_open` 焦点保护标志（避免系统选图对话框触发侧边菜单自动隐藏）。
-- `locales/{zh-CN,zh-TW,en-US,ja-JP,ko-KR}.json` — 各新增 38 条界面文案。
+- `menu.html`、`index.html` — 「角色外观」入口、工坊面板 DOM、物种选择、键盘四档、鼠标样式行。
+- `src/style.css` — 工坊、物种选择、配色分组、鼠标样式行样式。
+- `src/menuMain.ts`、`src/main.ts` — 工坊初始化、切猫动效触发、鼠标风格应用、非猫物种强制 2D。
+- `src/keyboardLayout.ts` — 新增 75% 与 87 TKL 阵列、`isWideKeyboard` / `normalizeKeyboardLayoutId`。
+- `src/catEngine.ts`、`src/catEngine3d.ts`、`src/keyboard3d.ts` — 布局判定语义化、鼠标配色、换岗动效、
+  非猫物种的分支绘制（复用原有打字目标，不改打字逻辑）。
+- `src/catSkins.ts` — 新增可选 `species` 字段与解析。
+- `src/agentCompanion.ts` — 新增 salute / hiss / ignore / heart 四个动作与切猫随机动效。
+- `src-tauri/src/lib.rs` — 新增 `save_custom_cat`、`set_cat_studio_open` 两个命令，
+  `studio_open` 焦点保护标志，四档键盘的窗口尺寸 `base_dimensions`。
+- `src-tauri/src/cats.rs` — `CatSkinConfig` 新增可选 `species` 字段。
+- `src-tauri/src/config.rs`、`tray.rs`、`mcp.rs` — 键盘布局四档的规范化、托盘菜单与 MCP schema。
+- `locales/{zh-CN,zh-TW,en-US,ja-JP,ko-KR}.json` — 各新增材质/物种/键盘/鼠标相关文案。
 - `README.md` — 改写为以新功能为中心的说明（上游说明仍可从 git 历史中查看）。
-
-除上述改动外，原有功能、设置、渲染引擎、MCP/钩子联动逻辑均未修改。
-
 ## 项目名称 / Naming
 
 本项目取名 **KuroCat Photo Studio（黑猫照相馆）**：
