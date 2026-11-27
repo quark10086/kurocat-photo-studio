@@ -11,6 +11,7 @@ import {
 } from './catEngine';
 import { catAudio } from './audio';
 import { AgentCompanionController, type AgentCompanionEvent } from './agentCompanion';
+import { InteractionDirector } from './interactionDirector';
 import { DEFAULT_BUILTIN_CATS, type CatSkinConfig } from './catSkins';
 import { mouseStyleFor } from './mouseStyles';
 import {
@@ -215,6 +216,29 @@ const agentCompanion = new AgentCompanionController({
   is3DTarget: () => Boolean(active3d && engine3d),
   allowSound: () => settings.soundEnabled !== false,
 });
+
+const interactionDirector = new InteractionDirector({
+  onTypingAnger: () => {
+    const target = active3d && engine3d ? engine3d : engine;
+    target.triggerCrossDemo();
+    if (settings.soundEnabled !== false) catAudio.playAngryGrunt();
+    agentCompanion.playEmote('💢', '打字太快啦…');
+  },
+  onIdleYawn: () => {
+    const target = active3d && engine3d ? engine3d : engine;
+    target.triggerYawnDemo();
+    if (settings.soundEnabled !== false) catAudio.playYawnBreath();
+    agentCompanion.playEmote('🥱', '好困…');
+  },
+  onPetHeart: () => {
+    const target = active3d && engine3d ? engine3d : engine;
+    target.triggerChinScratchDemo(active3d ? 2.8 : 2800);
+    if (settings.soundEnabled !== false) catAudio.playHappyPet();
+    agentCompanion.playEmote('💗', '再摸一下…');
+  },
+  canReact: () => !privacyActive && !gameActive,
+});
+interactionDirector.start();
 
 window.addEventListener('resize', () => engine3d?.resize());
 
@@ -1187,14 +1211,23 @@ async function bootstrap(): Promise<void> {
     const prevLock = lastKnownLockState;
     const prevRenderMode = settings.renderMode;
     const prevBreed = settings.catBreed;
+    const prevCat = catList.find((c) => c.id === prevBreed) ?? null;
     settings = ev.payload;
     if (prevRenderMode === '2d' && settings.renderMode !== '2d') {
       webgl3dUnavailable = false;
     }
     lastKnownLockState = settings.clickThroughLocked;
     syncMenuUI();
-    // 换岗动效: a random emote whenever the active cat actually changes.
+    // 换岗动效: 2D 走「旧猫退场 + 新猫接岗」的双猫交接，3D 走敬礼/爱心动作
     if (prevBreed && settings.catBreed && prevBreed !== settings.catBreed) {
+      const styles = ['salute', 'hiss', 'ignore', 'heart'] as const;
+      const style = styles[Math.floor(Math.random() * styles.length)];
+      if (!active3d) {
+        engine.startHandover(
+          prevCat ? { breedId: prevBreed, skin: prevCat.builtin ? null : prevCat } : null,
+          style,
+        );
+      }
       agentCompanion.playSwitchEmote();
     }
     if (prevLock !== null && prevLock !== settings.clickThroughLocked) {
@@ -1277,6 +1310,7 @@ async function bootstrap(): Promise<void> {
     switch (p.kind) {
       case 'keyDown':
         agentCompanion.notifyRealUserInput();
+        interactionDirector.notifyKey();
         if (tailPickerOpen) {
           if (!p.repeat) {
             const spec = resolveKeyByVk(p.vk, settings.keyboardLayout);
@@ -1302,6 +1336,7 @@ async function bootstrap(): Promise<void> {
         }
         break;
       case 'mouseMove': {
+        interactionDirector.notifyActivity();
         if (canvas.classList.contains('pet-dragging') || canvas3d.classList.contains('pet-dragging')) {
           const prevX = lastDragGlobalX;
           lastDragGlobalX = p.nx;
@@ -1320,6 +1355,7 @@ async function bootstrap(): Promise<void> {
         if (settings.typingSoundEnabled) {
           catAudio.playMouseDown(p.button);
         }
+        interactionDirector.notifyActivity();
         if (active3d && engine3d) engine3d.onMouseDown(p.button);
         else engine.onMouseDown(p.button);
         break;
@@ -1442,6 +1478,7 @@ async function bootstrap(): Promise<void> {
     else engine.onWindowCursor(c.relX, c.relY, c.overCat);
     const interactive = !settings.clickThroughLocked || altOverride;
     const petHover = c.overCat && interactive;
+    interactionDirector.setHover(petHover);
     if (petHover !== lastPetHover) {
       lastPetHover = petHover;
       canvas.classList.toggle('pet-hover', petHover);

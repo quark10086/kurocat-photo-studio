@@ -3540,6 +3540,69 @@ export class KuroCatEngine {
 
   // ---- High-fidelity true-scale rendering ----
 
+  // ---- 换岗交接（双猫同屏：旧猫退场、新猫接岗，中间亮一个动作符号） ----
+  private handover: {
+    breedId: string;
+    skin: CatSkinConfig | null;
+    startedAt: number;
+    style: 'salute' | 'hiss' | 'ignore' | 'heart';
+    durationMs: number;
+  } | null = null;
+
+  /** Starts the two-actor handover transition. Ignored in BigFish mode. */
+  public startHandover(
+    previous: { breedId: string; skin: CatSkinConfig | null } | null,
+    style: 'salute' | 'hiss' | 'ignore' | 'heart',
+    durationMs = 1500,
+  ): void {
+    if (!previous) return;
+    if (previous.breedId === 'dafeiyu' || this.catBreed === 'dafeiyu') return;
+    if (previous.breedId === this.catBreed && !previous.skin && !this.customSkin) return;
+    this.handover = {
+      breedId: previous.breedId === 'ragdoll' ? 'ragdoll' : 'black',
+      skin: previous.skin,
+      startedAt: performance.now(),
+      style,
+      durationMs,
+    };
+  }
+
+  /** Draws the outgoing cat behind the current one: slides left, tilts into a bow, fades out. */
+  private drawHandoverGhost(ctx: CanvasRenderingContext2D, breath: number): void {
+    const ho = this.handover;
+    if (!ho) return;
+    const t = (performance.now() - ho.startedAt) / ho.durationMs;
+    if (t >= 1) {
+      this.handover = null;
+      return;
+    }
+    if (t <= 0) return;
+
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const prevSkin = this.customSkin;
+    const prevBreed = this.catBreed;
+    this.catBreed = (ho.breedId === 'ragdoll' ? 'ragdoll' : 'black') as CatBreed;
+    this.customSkin = ho.skin ? resolveCustomSkin(ho.skin) : null;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - ease * 1.55);
+    ctx.translate(-148 * ease, -7 * Math.sin(ease * Math.PI));
+    ctx.rotate(-0.12 * ease);
+    this.drawCatBody(ctx, breath, 0);
+    ctx.restore();
+    this.customSkin = prevSkin;
+    this.catBreed = prevBreed;
+
+    const glyph =
+      ho.style === 'hiss' ? '💢' : ho.style === 'heart' ? '💗' : ho.style === 'ignore' ? '💤' : '✨';
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - t) * 0.95;
+    ctx.font = `${Math.round(20 + 6 * Math.sin(t * Math.PI))}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(glyph, this.catCenterX + 92 - 44 * ease, this.catTopY + 8);
+    ctx.restore();
+  }
+
   private render(): void {
     const ctx = this.ctx;
     const cw = this.canvas.width;
@@ -3649,6 +3712,9 @@ export class KuroCatEngine {
       this.drawTail(ctx);
       ctx.restore();
     }
+
+    // Layer 2.2: Handover ghost — the cat that just left slides away while the new one takes the desk
+    this.drawHandoverGhost(ctx, breath);
 
     // Layer 3: Exact measured spine-deformable cat silhouette (ears, cheeks, neck, pear belly, grounded hind feet, eyes & tiny whiskers)
     this.drawCatBody(ctx, breath, purrShift);

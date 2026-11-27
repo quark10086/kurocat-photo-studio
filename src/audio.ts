@@ -731,6 +731,177 @@ class CatAudio {
       // Never throw on blocked autoplay or missing audio hardware
     }
   }
+  /**
+   * Gentle, low "mmmrrrow?" protest when the cat gets tired of non-stop typing.
+   * Deliberately soft: low sine + soft triangle blend through a lowpass, no harsh highs.
+   */
+  public playAngryGrunt(): void {
+    const ctx = this.getReadyContext();
+    if (!ctx) return;
+
+    try {
+      const t0 = ctx.currentTime + 0.01;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(520, t0);
+      lp.Q.value = 0.7;
+
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.055, t0 + 0.06);
+      g.gain.linearRampToValueAtTime(0.045, t0 + 0.42);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.62);
+
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, t0);
+      osc.frequency.linearRampToValueAtTime(178, t0 + 0.16);
+      osc.frequency.linearRampToValueAtTime(132, t0 + 0.5);
+
+      const sub = ctx.createOscillator();
+      sub.type = 'triangle';
+      sub.frequency.setValueAtTime(74, t0);
+      sub.frequency.linearRampToValueAtTime(66, t0 + 0.5);
+
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.0001, t0);
+      subGain.gain.linearRampToValueAtTime(0.028, t0 + 0.08);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+
+      osc.connect(lp);
+      sub.connect(subGain);
+      lp.connect(g);
+      subGain.connect(g);
+      g.connect(ctx.destination);
+
+      osc.start(t0);
+      sub.start(t0);
+      osc.stop(t0 + 0.64);
+      sub.stop(t0 + 0.6);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          sub.disconnect();
+          lp.disconnect();
+          g.disconnect();
+          subGain.disconnect();
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // Never throw on blocked autoplay or missing audio hardware
+    }
+  }
+
+  /** Soft sleepy inhale-then-sigh for a yawn (breathy noise + falling tone). */
+  public playYawnBreath(): void {
+    const ctx = this.getReadyContext();
+    if (!ctx) return;
+
+    try {
+      const t0 = ctx.currentTime + 0.01;
+
+      // 1) airy inhale
+      const len = Math.max(1, Math.floor(ctx.sampleRate * 1.05));
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        const k = i / len;
+        data[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * Math.pow(k, 0.75));
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(900, t0);
+      bp.frequency.linearRampToValueAtTime(520, t0 + 0.95);
+      bp.Q.value = 0.9;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, t0);
+      ng.gain.linearRampToValueAtTime(0.032, t0 + 0.32);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.0);
+      src.connect(bp);
+      bp.connect(ng);
+      ng.connect(ctx.destination);
+
+      // 2) sleepy downward sigh
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      const g = ctx.createGain();
+      osc.frequency.setValueAtTime(330, t0 + 0.18);
+      osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.95);
+      g.gain.setValueAtTime(0.0001, t0 + 0.18);
+      g.gain.linearRampToValueAtTime(0.022, t0 + 0.34);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.98);
+      osc.connect(g);
+      g.connect(ctx.destination);
+
+      src.start(t0);
+      src.stop(t0 + 1.02);
+      osc.start(t0 + 0.18);
+      osc.stop(t0 + 1.0);
+      src.onended = () => {
+        try {
+          src.disconnect();
+          bp.disconnect();
+          ng.disconnect();
+          osc.disconnect();
+          g.disconnect();
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // Never throw on blocked autoplay or missing audio hardware
+    }
+  }
+
+  /**
+   * Warm happy chirp + purr swell when the cat is petted.
+   * Two rising soft notes (like a contented "mrrp") with a gentle breath tail.
+   */
+  public playHappyPet(): void {
+    const ctx = this.getReadyContext();
+    if (!ctx) return;
+
+    try {
+      const t0 = ctx.currentTime + 0.01;
+      const notes: Array<{ f0: number; f1: number; delay: number; dur: number; gain: number }> = [
+        { f0: 620, f1: 780, delay: 0.0, dur: 0.15, gain: 0.05 },
+        { f0: 780, f1: 940, delay: 0.12, dur: 0.19, gain: 0.045 },
+      ];
+      for (const n of notes) {
+        const osc = ctx.createOscillator();
+        const lp = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        lp.type = 'lowpass';
+        lp.frequency.value = 2200;
+        osc.frequency.setValueAtTime(n.f0, t0 + n.delay);
+        osc.frequency.exponentialRampToValueAtTime(n.f1, t0 + n.delay + n.dur * 0.8);
+        g.gain.setValueAtTime(0.0001, t0 + n.delay);
+        g.gain.linearRampToValueAtTime(n.gain, t0 + n.delay + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + n.delay + n.dur);
+        osc.connect(lp);
+        lp.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t0 + n.delay);
+        osc.stop(t0 + n.delay + n.dur + 0.02);
+        osc.onended = () => {
+          try {
+            osc.disconnect();
+            lp.disconnect();
+            g.disconnect();
+          } catch {
+            // ignore
+          }
+        };
+      }
+    } catch {
+      // Never throw on blocked autoplay or missing audio hardware
+    }
+  }
 }
 
 export const catAudio = new CatAudio();
