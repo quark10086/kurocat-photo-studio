@@ -22,7 +22,6 @@
   分部位（头/躯干/腹/四肢/尾）取色、花纹/眼睛/脸型/耳型/胖瘦推断，输出 `CatSkinConfig`。
 - `src/catStudio.ts` — 「猫咪工坊」面板：选图、实时 2D 预览、简易/高级两档、8+ 项微调、保存并应用。
 - `src/catBreeds.ts` — 8 个品种预设、花纹亲缘矩阵与匹配打分。
-- `src/speciesBody.ts` — 蛇 / 鸡的 2D 形体绘制（含蛇尾、鸡爪与喙的动作）。
 - `src/mouseStyles.ts` — 8 款鼠标配色与按猫 id 的确定性分配。
 - `site/` — 项目落地页（GitHub Pages）。
 - `docs/screenshots/*`、`docs/release-notes/*` — 功能截图与发布说明。

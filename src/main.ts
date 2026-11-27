@@ -317,16 +317,10 @@ function shouldWearHeadphonesNow(): boolean {
   return gameActive;
 }
 
-function activeSpecies(): 'cat' | 'snake' | 'chicken' {
-  const cat = catList.find((entry) => entry.id === settings.catBreed);
-  return cat?.species === 'snake' || cat?.species === 'chicken' ? cat.species : 'cat';
-}
-
 function wants3DNow(): boolean {
   return (
     settings.renderMode !== '2d' &&
     settings.catBreed !== 'dafeiyu' &&
-    activeSpecies() === 'cat' &&
     !tailPickerOpen &&
     !isWin7Ulw &&
     !webgl3dUnavailable

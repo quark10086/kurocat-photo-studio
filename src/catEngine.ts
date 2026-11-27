@@ -13,13 +13,6 @@ import { catAudio } from './audio';
 import { resolveCustomSkin, type CatSkinConfig, type ResolvedSkin } from './catSkins';
 import { DaFeiYuRenderer, type DaFeiYuLayout } from './dafeiyuRenderer';
 import { darkenHex, lightenHex, mixHex, type MouseStyle } from './mouseStyles';
-import {
-  drawChickenBody,
-  drawSnakeBody,
-  type SpeciesAnchors,
-  type SpeciesKind,
-  type SpeciesPalette,
-} from './speciesBody';
 
 export const LOGICAL_W = 420;
 export const LOGICAL_H = 440;
@@ -945,10 +938,6 @@ export class KuroCatEngine {
       this.catBreed = 'black';
       this.customSkin = null;
     }
-    this.species =
-      skin?.species === 'snake' || skin?.species === 'chicken' ? skin.species : 'cat';
-    this.species =
-      skin?.species === 'snake' || skin?.species === 'chicken' ? skin.species : 'cat';
     this.syncLayoutPositions();
     this.wakeAction();
   }
@@ -1052,8 +1041,6 @@ export class KuroCatEngine {
   private logicalW = 420;
   private logicalH = 440;
   private catCenterX = 196;
-  /** Non-cat prototype rigs (snake types with its tail, chicken taps with claws). */
-  private species: SpeciesKind = 'cat';
   private catTopY = 82;
   private catBaseY = 308;
   private readonly catHeight = 226;
@@ -3655,25 +3642,20 @@ export class KuroCatEngine {
       ctx.translate(-pivotX, -pivotY);
     }
 
-    if (this.species === 'cat') {
-      // Layer 2: Plush cat tail (tucks away cleanly when peeking from edge!)
-      if (peekP < 0.55) {
-        ctx.save();
-        if (peekP > 0.02) ctx.globalAlpha = Math.max(0, 1 - peekP * 1.9);
-        this.drawTail(ctx);
-        ctx.restore();
-      }
-
-      // Layer 3: Exact measured spine-deformable cat silhouette (ears, cheeks, neck, pear belly, grounded hind feet, eyes & tiny whiskers)
-      this.drawCatBody(ctx, breath, purrShift);
-
-      // Layer 4: True-scale velvety cat paws (tapered idle legs / edge-gripping peek paws / poking / grooming!)
-      this.drawPaw(ctx, this.leftPaw, breath);
-      this.drawPaw(ctx, this.rightPaw, breath);
-    } else {
-      // Prototype rigs: the same desk & key targeting, a different creature.
-      this.drawSpeciesBody(ctx, breath);
+    // Layer 2: Plush cat tail (tucks away cleanly when peeking from edge!)
+    if (peekP < 0.55) {
+      ctx.save();
+      if (peekP > 0.02) ctx.globalAlpha = Math.max(0, 1 - peekP * 1.9);
+      this.drawTail(ctx);
+      ctx.restore();
     }
+
+    // Layer 3: Exact measured spine-deformable cat silhouette (ears, cheeks, neck, pear belly, grounded hind feet, eyes & tiny whiskers)
+    this.drawCatBody(ctx, breath, purrShift);
+
+    // Layer 4: True-scale velvety cat paws (tapered idle legs / edge-gripping peek paws / poking / grooming!)
+    this.drawPaw(ctx, this.leftPaw, breath);
+    this.drawPaw(ctx, this.rightPaw, breath);
 
     // Layer 4.5: Alive cat comic FX (anger 💢 mark, tail-slam starburst & dust puffs, sleepy Zzz, chin hearts, groom sparkles)
     this.drawCatAliveFx(ctx, performance.now(), breath);
@@ -4201,52 +4183,6 @@ export class KuroCatEngine {
     }
 
     ctx.restore();
-  }
-
-  /** Builds the shared palette for the snake / chicken prototype rigs. */
-  private speciesPalette(): SpeciesPalette {
-    const skin = this.customSkin;
-    const fur =
-      skin?.furColor ??
-      (this.catBreed === 'ragdoll' ? '#fbf9f3' : this.catBreed === 'dafeiyu' ? '#2957a4' : '#141314');
-    const belly = skin?.bellyBibColor ?? mixHex(fur, '#ffffff', 0.52);
-    const outline = skin?.outlineColor ?? mixHex(fur, '#000000', 0.46);
-    const eye = skin?.eyeColorTop ?? (this.catBreed === 'ragdoll' ? '#2c5594' : '#d4f044');
-    const pupil = skin?.pupilColor ?? '#16161a';
-    const accent = skin?.accentColor ?? '#d2f244';
-    return { fur, furDark: mixHex(fur, '#000000', 0.12), belly, outline, eye, pupil, accent };
-  }
-
-  /**
-   * Non-cat rigs reuse the cat's spine, limb anchors and key targeting, so the
-   * snake tail-tip and the chicken claws press the very same keys as the paws.
-   */
-  private drawSpeciesBody(ctx: CanvasRenderingContext2D, breath: number): void {
-    const head = this.spinePoint(0.26, breath);
-    const base = this.spinePoint(1.0, breath);
-    const anchors: SpeciesAnchors = {
-      breath,
-      centerX: this.catCenterX,
-      headY: head.y,
-      baseY: base.y,
-      scale: this.catHeight / 226,
-      sway: this.spineLean * 26 + this.typingSway * 18,
-      lookX: Math.max(-1, Math.min(1, (this.rightPaw.pos.x - this.catCenterX) / 90)) * 5,
-      lookY: Math.max(-1, Math.min(1, (this.rightPaw.pos.y - head.y) / 120)) * 3,
-      blink: Math.max(this.isBlinking ? 1 - Math.abs(this.blinkProgress - 1) : 0, this.sleepAmount * 0.55),
-      squint: this.squintAmount,
-      sleep: this.sleepAmount,
-      mouthOpen: this.yawnAmount,
-      tonguePhase: this.elapsed * 1.7,
-      left: { x: this.leftPaw.pos.x, y: this.leftPaw.pos.y },
-      right: { x: this.rightPaw.pos.x, y: this.rightPaw.pos.y },
-    };
-    const palette = this.speciesPalette();
-    if (this.species === 'snake') {
-      drawSnakeBody(ctx, palette, anchors);
-    } else {
-      drawChickenBody(ctx, palette, anchors);
-    }
   }
   private drawCatBody(ctx: CanvasRenderingContext2D, breath: number, purrShift: number): void {
     if (this.customSkin) {

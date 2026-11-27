@@ -169,7 +169,6 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
   const modeSimpleBtn = el<HTMLButtonElement>('studio-mode-simple');
   const modeAdvancedBtn = el<HTMLButtonElement>('studio-mode-advanced');
   const simpleFieldsEl = el<HTMLDivElement>('studio-simple');
-  const speciesWrap = el<HTMLDivElement>('studio-species');
 
   const colorInputs = new Map<ColorKey, HTMLInputElement>();
 
@@ -221,32 +220,11 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
     earSel.value = config.earShape || 'cat';
     chubbyInput.value = String(Math.round((config.bodyChubbiness ?? 1) * 100));
     squintInput.value = String(Math.round((config.eyeSquint ?? 0) * 100));
-    syncSpeciesButtons();
     syncAdvancedControls();
   }
 
-  /* ------------------------------------------------------- species selector */
 
-  function syncSpeciesButtons(): void {
-    if (!speciesWrap) return;
-    const active = config?.species === 'snake' || config?.species === 'chicken' ? config.species : 'cat';
-    speciesWrap.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.species === active);
-    });
-    if (breedsWrap) breedsWrap.classList.toggle('hidden', active !== 'cat');
-  }
 
-  if (speciesWrap) {
-    speciesWrap.addEventListener('click', (event) => {
-      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-species]');
-      if (!btn || !config) return;
-      const next = btn.dataset.species;
-      config.species = next === 'snake' || next === 'chicken' ? next : 'cat';
-      syncSpeciesButtons();
-      pushPreview();
-      setStatus(t('menu.studio_ready'), 'ok');
-    });
-  }
   /* ------------------------------------------------- advanced colour panel */
 
   function buildAdvancedPanel(): void {
