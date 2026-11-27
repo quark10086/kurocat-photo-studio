@@ -146,6 +146,10 @@ pub struct CatSkinConfig {
     // Unique pet birthmarks / patches
     #[serde(default)]
     pub spots: Vec<CatSpot>,
+
+    /// Non-cat prototype rig: "cat" (default), "snake" or "chicken".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub species: Option<String>,
 }
 
 fn default_eye_top() -> String {
@@ -228,6 +232,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "ragdoll".to_string(),
@@ -278,6 +283,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "orange-tabby".to_string(),
@@ -328,6 +334,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "calico".to_string(),
@@ -378,6 +385,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "tuxedo".to_string(),
@@ -428,6 +436,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "siamese".to_string(),
@@ -478,6 +487,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
         CatSkinConfig {
             id: "dafeiyu".to_string(),
@@ -528,6 +538,7 @@ pub fn builtin_cats() -> Vec<CatSkinConfig> {
             eye_squint: None,
             body_chubbiness: None,
             spots: vec![],
+            species: None,
         },
     ]
 }

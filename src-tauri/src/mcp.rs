@@ -24,7 +24,7 @@ pub struct AgentCompanionEvent {
     /// "working" | "thinking" | "waiting" | "done" | "error" | "idle"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    /// "happy" | "pet" | "angry" | "curious" | "sleep" | "wake" | "tail_pat"
+    /// "happy" | "pet" | "angry" | "curious" | "sleep" | "wake" | "tail_pat" | "salute" | "hiss" | "ignore" | "heart"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub action: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -93,6 +93,10 @@ fn normalize_action(raw: &str) -> Option<&'static str> {
         "sleep" | "nap" | "zzz" => Some("sleep"),
         "wake" | "wakeup" => Some("wake"),
         "tail_pat" | "tail" | "slap" => Some("tail_pat"),
+        "salute" | "greet" | "bow" => Some("salute"),
+        "hiss" | "spit" | "scold" => Some("hiss"),
+        "ignore" | "sulk" | "snub" => Some("ignore"),
+        "heart" | "love" | "kiss" => Some("heart"),
         _ => None,
     }
 }
@@ -723,7 +727,7 @@ fn tool_definitions() -> Value {
                     "collarColor": { "type": "string", "enum": ["none", "red", "blue", "pink", "green"], "description": "Optional 3D collar & gold bell color." },
                     "headphoneMode": { "type": "string", "enum": ["auto", "on", "off"], "description": "Gaming headset mode." },
                     "scale": { "type": "number", "minimum": 0.2, "maximum": 1.5 },
-                    "keyboardLayout": { "type": "string", "enum": ["65", "108"] },
+                    "keyboardLayout": { "type": "string", "enum": ["65", "75", "87", "108"] },
                     "keyboardOrientation": { "type": "string", "enum": ["cat", "viewer"] },
                     "tailKeyMode": { "type": "string", "enum": ["smart", "custom", "edge", "off"] },
                     "tailKeyIds": {
@@ -774,7 +778,7 @@ fn tool_definitions() -> Value {
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["happy", "pet", "angry", "curious", "sleep", "wake", "tail_pat"],
+                        "enum": ["happy", "pet", "angry", "curious", "sleep", "wake", "tail_pat", "salute", "hiss", "ignore", "heart"],
                         "description": "Expression or animation to play immediately."
                     },
                     "text": { "type": "string", "description": "Optional floating bubble message to show with the action." },
@@ -1050,7 +1054,7 @@ fn execute_tool(
                 Some("MCP")
             };
             let Some(ev) = parse_hook_payload(args, default_src, None, None) else {
-                return err_text("Invalid 'action'. Expected one of: happy, pet, angry, curious, sleep, wake, tail_pat.");
+                return err_text("Invalid 'action'. Expected one of: happy, pet, angry, curious, sleep, wake, tail_pat, salute, hiss, ignore, heart.");
             };
             on_agent_event(ev.clone());
             ok_text(json!({

@@ -5,11 +5,21 @@ import {
   type KeySpec,
   type KeyboardLayoutId,
   formatBubbleForVk,
+  isWideKeyboard,
+  normalizeKeyboardLayoutId,
   resolveKeyByVk,
 } from './keyboardLayout';
 import { catAudio } from './audio';
 import { resolveCustomSkin, type CatSkinConfig, type ResolvedSkin } from './catSkins';
 import { DaFeiYuRenderer, type DaFeiYuLayout } from './dafeiyuRenderer';
+import { darkenHex, lightenHex, mixHex, type MouseStyle } from './mouseStyles';
+import {
+  drawChickenBody,
+  drawSnakeBody,
+  type SpeciesAnchors,
+  type SpeciesKind,
+  type SpeciesPalette,
+} from './speciesBody';
 
 export const LOGICAL_W = 420;
 export const LOGICAL_H = 440;
@@ -478,7 +488,7 @@ export class KuroCatEngine {
 
     const layout = getKeyboardLayout(this.keyboardLayout);
     const isCatFacing = this.keyboardOrientation === 'cat';
-    const is108 = this.keyboardLayout === '108';
+    const is108 = isWideKeyboard(this.keyboardLayout);
     const rowH = innerH / layout.totalRows;
     const unitW = innerW / layout.totalUnits;
     const gap = is108 ? 0.85 : 0.9;
@@ -583,7 +593,7 @@ export class KuroCatEngine {
     const p = Math.max(0, Math.min(1, this.peekAmount));
     const isDafeiyu = this.catBreed === 'dafeiyu';
     const headY = this.catTopY + 0.24 * this.catHeight;
-    const pivotX = isDafeiyu ? (this.keyboardLayout === '108' ? 268 : 192) : this.catCenterX;
+    const pivotX = isDafeiyu ? (isWideKeyboard(this.keyboardLayout) ? 268 : 192) : this.catCenterX;
     const pivotY = isDafeiyu ? 176 : headY;
     if (p <= 0.001) {
       return { tx: 0, ty: 0, rot: 0, pivotX, pivotY };
@@ -654,7 +664,7 @@ export class KuroCatEngine {
     tailPts: Vec2[];
   } {
     if (this.catBreed === 'dafeiyu') {
-      const pivotX = this.keyboardLayout === '108' ? 268 : 192;
+      const pivotX = isWideKeyboard(this.keyboardLayout) ? 268 : 192;
       return {
         nose: { x: pivotX, y: 204, rx: 18, ry: 15 },
         chin: { x: pivotX, y: 232, rx: 32, ry: 18 },
@@ -688,7 +698,7 @@ export class KuroCatEngine {
   public hitTestCatZoneLogical(lx: number, ly: number): CatHitZone {
     if (this.catBreed === 'dafeiyu') {
       if (this.peekAmount > 0.35) {
-        const pivotX = this.keyboardLayout === '108' ? 268 : 192;
+        const pivotX = isWideKeyboard(this.keyboardLayout) ? 268 : 192;
         const pivotY = 176;
         const dx = (lx - pivotX) / 94;
         const dy = (ly - pivotY) / 104;
@@ -844,7 +854,7 @@ export class KuroCatEngine {
     if (this.tailKeyMode === 'edge') {
       if (EDGE_PROTECTED_WASD_IDS.has(spec.id)) return false;
       const edgeThresholdX =
-        this.keyboardLayout === '108'
+        isWideKeyboard(this.keyboardLayout)
           ? this.kbCenterX + this.kbWidth * 0.22
           : this.kbCenterX + this.kbWidth * 0.34;
       return targetPoint.x >= edgeThresholdX;
@@ -887,7 +897,7 @@ export class KuroCatEngine {
 
   private syncLayoutPositions(): void {
     const isBigFish = this.catBreed === 'dafeiyu';
-    if (this.keyboardLayout === '108') {
+    if (isWideKeyboard(this.keyboardLayout)) {
       this.logicalW = 540;
       this.logicalH = 456;
       this.catCenterX = 278;
@@ -935,10 +945,27 @@ export class KuroCatEngine {
       this.catBreed = 'black';
       this.customSkin = null;
     }
+    this.species =
+      skin?.species === 'snake' || skin?.species === 'chicken' ? skin.species : 'cat';
+    this.species =
+      skin?.species === 'snake' || skin?.species === 'chicken' ? skin.species : 'cat';
     this.syncLayoutPositions();
     this.wakeAction();
   }
 
+  /** Applies a randomized mouse shell so each cat can carry its own peripheral look. */
+  public setMouseStyle(style: MouseStyle | null): void {
+    if (!style) {
+      this.mouseShell = { rim: '#c8cac4', palm0: '#ecece7', palm1: '#f4f4f0', btn: '#fafaf7' };
+      return;
+    }
+    this.mouseShell = {
+      rim: mixHex(style.skirt, '#ffffff', 0.18),
+      palm0: lightenHex(style.tint, 0.08),
+      palm1: mixHex(style.tint, '#ffffff', 0.3),
+      btn: lightenHex(style.tint, 0.42),
+    };
+  }
   public setHeadphones(active: boolean): void {
     const next = Boolean(active);
     if (next !== this.headphonesOn) {
@@ -951,7 +978,7 @@ export class KuroCatEngine {
   }
 
   public setKeyboardConfig(layout: KeyboardLayoutId, orientation: KeyboardOrientation): void {
-    const nextLayout: KeyboardLayoutId = layout === '108' ? '108' : '65';
+    const nextLayout: KeyboardLayoutId = normalizeKeyboardLayoutId(layout);
     const nextOrientation: KeyboardOrientation = orientation === 'viewer' ? 'viewer' : 'cat';
     const layoutChanged = this.keyboardLayout !== nextLayout;
     this.keyboardLayout = nextLayout;
@@ -1016,7 +1043,7 @@ export class KuroCatEngine {
       petEnergy: this.petEnergy,
       privacyMode: this.privacyMode,
       privacyTypingAt: this.privacyTypingAt,
-      is108: this.keyboardLayout === '108',
+      is108: isWideKeyboard(this.keyboardLayout),
       peekAmount: Math.max(0, Math.min(1, this.peekAmount)),
     };
   }
@@ -1025,6 +1052,8 @@ export class KuroCatEngine {
   private logicalW = 420;
   private logicalH = 440;
   private catCenterX = 196;
+  /** Non-cat prototype rigs (snake types with its tail, chicken taps with claws). */
+  private species: SpeciesKind = 'cat';
   private catTopY = 82;
   private catBaseY = 308;
   private readonly catHeight = 226;
@@ -1035,6 +1064,14 @@ export class KuroCatEngine {
   private kbWidth = 266;
   private kbHeight = 74;
   private kbTiltRad = (3.4 * Math.PI) / 180;
+
+  // Randomized shell palette (defaults = the classic white oval mouse)
+  private mouseShell = {
+    rim: '#c8cac4',
+    palm0: '#ecece7',
+    palm1: '#f4f4f0',
+    btn: '#fafaf7',
+  };
 
   // True-scale white oval mouse to the left of keyboard
   private mouseBaseX = 54;
@@ -1697,6 +1734,32 @@ export class KuroCatEngine {
     window.setTimeout(() => this.onKeyUp(vk), 170);
   }
 
+  /* ------------------------------------------------------------------ emotes
+   * 换岗动效 shown when the user switches to another cat. Each emote reuses an
+   * idle vignette that already animates the right body language, which keeps
+   * them cheap and consistent with the existing poses:
+   *   salute → groom (paw raised to the face, reads as a salute)
+   *   hiss   → cross (airplane ears + puff)
+   *   ignore → yawn  (head turns away, unimpressed)
+   *   heart  → happy (squint + blush)
+   */
+
+  public triggerSaluteDemo(): void {
+    this.startIdleVignette('groom', 1500);
+  }
+
+  public triggerHissDemo(): void {
+    this.triggerCrossDemo();
+  }
+
+  public triggerIgnoreDemo(): void {
+    this.startIdleVignette('yawn', 1800);
+  }
+
+  public triggerHeartDemo(): void {
+    this.triggerHappyDemo(2600);
+  }
+
   private startIdleVignette(kind: IdleFidget['kind'], dur: number, side: -1 | 1 = Math.random() < 0.5 ? -1 : 1): void {
     const now = performance.now();
     this.wakeCat(now, 'gentle');
@@ -1835,7 +1898,7 @@ export class KuroCatEngine {
     const u = Math.max(0, Math.min(1, 1 - t)); // 0 at hips, 1 at head
     const shearCurve = u * u * (3 - 2 * u); // smoothstep from hips up to head!
     // Measured mouse-lean shift (-46px at head) + lively typing left-right body/head sway (+-25px)!
-    const leanAmp = this.keyboardLayout === '108' ? 76 : 46;
+    const leanAmp = isWideKeyboard(this.keyboardLayout) ? 76 : 46;
     const scruffSwingX = this.scruffAmount * this.scruffSwing * 30 * Math.pow(Math.max(0, t - 0.14), 1.3);
     const peekCalm = 1 - Math.max(0, Math.min(1, this.peekAmount));
     const leanX =
@@ -2018,7 +2081,7 @@ export class KuroCatEngine {
     }
 
     const splitCol =
-      this.keyboardLayout === '108'
+      isWideKeyboard(this.keyboardLayout)
         ? isCatFacing
           ? 12.2
           : 8.4
@@ -2495,7 +2558,7 @@ export class KuroCatEngine {
     if (this.bubbles.length >= 6) {
       this.bubbles.shift();
     }
-    const minX = this.keyboardLayout === '108' ? 145 : 125;
+    const minX = isWideKeyboard(this.keyboardLayout) ? 145 : 125;
     const maxX = this.logicalW - 105;
     const baseX = Math.max(minX, Math.min(maxX, keyX * 0.45 + this.kbCenterX * 0.55));
     const staggerY = 258 + ((this.nextBubbleId % 3) - 1) * 10 + (Math.random() - 0.5) * 6;
@@ -2522,7 +2585,7 @@ export class KuroCatEngine {
     const gap = 3.5;
     const totalW = widths.reduce((a, b) => a + b, 0) + gap * (count - 1);
     const anchor = this.kbCenterX + 12;
-    const leftBound = this.keyboardLayout === '108' ? 140 : 126;
+    const leftBound = isWideKeyboard(this.keyboardLayout) ? 140 : 126;
     const rightBound = this.logicalW - 82;
     let cursor = Math.max(leftBound, Math.min(rightBound - totalW, anchor - totalW * 0.5));
 
@@ -3592,20 +3655,25 @@ export class KuroCatEngine {
       ctx.translate(-pivotX, -pivotY);
     }
 
-    // Layer 2: Plush cat tail (tucks away cleanly when peeking from edge!)
-    if (peekP < 0.55) {
-      ctx.save();
-      if (peekP > 0.02) ctx.globalAlpha = Math.max(0, 1 - peekP * 1.9);
-      this.drawTail(ctx);
-      ctx.restore();
+    if (this.species === 'cat') {
+      // Layer 2: Plush cat tail (tucks away cleanly when peeking from edge!)
+      if (peekP < 0.55) {
+        ctx.save();
+        if (peekP > 0.02) ctx.globalAlpha = Math.max(0, 1 - peekP * 1.9);
+        this.drawTail(ctx);
+        ctx.restore();
+      }
+
+      // Layer 3: Exact measured spine-deformable cat silhouette (ears, cheeks, neck, pear belly, grounded hind feet, eyes & tiny whiskers)
+      this.drawCatBody(ctx, breath, purrShift);
+
+      // Layer 4: True-scale velvety cat paws (tapered idle legs / edge-gripping peek paws / poking / grooming!)
+      this.drawPaw(ctx, this.leftPaw, breath);
+      this.drawPaw(ctx, this.rightPaw, breath);
+    } else {
+      // Prototype rigs: the same desk & key targeting, a different creature.
+      this.drawSpeciesBody(ctx, breath);
     }
-
-    // Layer 3: Exact measured spine-deformable cat silhouette (ears, cheeks, neck, pear belly, grounded hind feet, eyes & tiny whiskers)
-    this.drawCatBody(ctx, breath, purrShift);
-
-    // Layer 4: True-scale velvety cat paws (tapered idle legs / edge-gripping peek paws / poking / grooming!)
-    this.drawPaw(ctx, this.leftPaw, breath);
-    this.drawPaw(ctx, this.rightPaw, breath);
 
     // Layer 4.5: Alive cat comic FX (anger 💢 mark, tail-slam starburst & dust puffs, sleepy Zzz, chin hearts, groom sparkles)
     this.drawCatAliveFx(ctx, performance.now(), breath);
@@ -4135,6 +4203,51 @@ export class KuroCatEngine {
     ctx.restore();
   }
 
+  /** Builds the shared palette for the snake / chicken prototype rigs. */
+  private speciesPalette(): SpeciesPalette {
+    const skin = this.customSkin;
+    const fur =
+      skin?.furColor ??
+      (this.catBreed === 'ragdoll' ? '#fbf9f3' : this.catBreed === 'dafeiyu' ? '#2957a4' : '#141314');
+    const belly = skin?.bellyBibColor ?? mixHex(fur, '#ffffff', 0.52);
+    const outline = skin?.outlineColor ?? mixHex(fur, '#000000', 0.46);
+    const eye = skin?.eyeColorTop ?? (this.catBreed === 'ragdoll' ? '#2c5594' : '#d4f044');
+    const pupil = skin?.pupilColor ?? '#16161a';
+    const accent = skin?.accentColor ?? '#d2f244';
+    return { fur, furDark: mixHex(fur, '#000000', 0.12), belly, outline, eye, pupil, accent };
+  }
+
+  /**
+   * Non-cat rigs reuse the cat's spine, limb anchors and key targeting, so the
+   * snake tail-tip and the chicken claws press the very same keys as the paws.
+   */
+  private drawSpeciesBody(ctx: CanvasRenderingContext2D, breath: number): void {
+    const head = this.spinePoint(0.26, breath);
+    const base = this.spinePoint(1.0, breath);
+    const anchors: SpeciesAnchors = {
+      breath,
+      centerX: this.catCenterX,
+      headY: head.y,
+      baseY: base.y,
+      scale: this.catHeight / 226,
+      sway: this.spineLean * 26 + this.typingSway * 18,
+      lookX: Math.max(-1, Math.min(1, (this.rightPaw.pos.x - this.catCenterX) / 90)) * 5,
+      lookY: Math.max(-1, Math.min(1, (this.rightPaw.pos.y - head.y) / 120)) * 3,
+      blink: Math.max(this.isBlinking ? 1 - Math.abs(this.blinkProgress - 1) : 0, this.sleepAmount * 0.55),
+      squint: this.squintAmount,
+      sleep: this.sleepAmount,
+      mouthOpen: this.yawnAmount,
+      tonguePhase: this.elapsed * 1.7,
+      left: { x: this.leftPaw.pos.x, y: this.leftPaw.pos.y },
+      right: { x: this.rightPaw.pos.x, y: this.rightPaw.pos.y },
+    };
+    const palette = this.speciesPalette();
+    if (this.species === 'snake') {
+      drawSnakeBody(ctx, palette, anchors);
+    } else {
+      drawChickenBody(ctx, palette, anchors);
+    }
+  }
   private drawCatBody(ctx: CanvasRenderingContext2D, breath: number, purrShift: number): void {
     if (this.customSkin) {
       this.drawCustomCatBody(ctx, this.customSkin, breath, purrShift);
@@ -5014,7 +5127,7 @@ export class KuroCatEngine {
     ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
     ctx.shadowBlur = 0; /* perf: no per-frame blur */
     ctx.shadowOffsetY = 3.5;
-    ctx.fillStyle = '#c8cac4';
+    ctx.fillStyle = this.mouseShell.rim;
     ctx.beginPath();
     ctx.ellipse(0, 1.8, rx, ry, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -5022,8 +5135,8 @@ export class KuroCatEngine {
 
     // Main mouse palm shell (rear/palm at TOP closest to cat; split L/R buttons at BOTTOM pointing away from cat)
     const palmGrad = ctx.createLinearGradient(0, -ry, 0, 2);
-    palmGrad.addColorStop(0.0, '#ecece7');
-    palmGrad.addColorStop(1.0, '#f4f4f0');
+    palmGrad.addColorStop(0.0, this.mouseShell.palm0);
+    palmGrad.addColorStop(1.0, this.mouseShell.palm1);
     ctx.fillStyle = palmGrad;
     ctx.beginPath();
     ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
@@ -5056,7 +5169,7 @@ export class KuroCatEngine {
     ctx.lineTo(rx + 2, ry + 2);
     ctx.lineTo(0, ry + 2);
     ctx.closePath();
-    ctx.fillStyle = lPress > 0.08 ? colors.left : '#fafaf7';
+    ctx.fillStyle = lPress > 0.08 ? colors.left : this.mouseShell.btn;
     ctx.fill();
     if (lPress > 0.08) {
       ctx.fillStyle = `rgba(18, 22, 28, ${(0.18 * lPress).toFixed(3)})`;
@@ -5071,7 +5184,7 @@ export class KuroCatEngine {
     ctx.lineTo(0, ry + 2);
     ctx.lineTo(-rx - 2, ry + 2);
     ctx.closePath();
-    ctx.fillStyle = rPress > 0.08 ? colors.right : '#fafaf7';
+    ctx.fillStyle = rPress > 0.08 ? colors.right : this.mouseShell.btn;
     ctx.fill();
     if (rPress > 0.08) {
       ctx.fillStyle = `rgba(18, 22, 28, ${(0.18 * rPress).toFixed(3)})`;
@@ -5139,7 +5252,7 @@ export class KuroCatEngine {
   private drawKeyboard(ctx: CanvasRenderingContext2D): void {
     const layout = getKeyboardLayout(this.keyboardLayout);
     const isCatFacing = this.keyboardOrientation === 'cat';
-    const is108 = this.keyboardLayout === '108';
+    const is108 = isWideKeyboard(this.keyboardLayout);
     const padX = 7;
     const padY = 6;
     const innerW = this.kbWidth - padX * 2;

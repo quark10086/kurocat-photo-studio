@@ -137,7 +137,17 @@
     "ear_round": "丸耳",
     "ear_tall": "長耳",
     "ear_small": "小耳",
-    "ear_wide": "広耳"
+    "ear_wide": "広耳",
+    "kb_75": "75% コンパクト",
+    "kb_87": "87 TKL",
+    "kb_75_short": "75%",
+    "kb_87_short": "87 TKL",
+    "mouse_style": "マウスの外観",
+    "mouse_shuffle": "🎲 引き直す",
+    "studio_species": "種類",
+    "species_cat": "ネコ",
+    "species_snake": "ヘビ",
+    "species_chicken": "ニワトリ"
   },
   "breeds": {
     "black": "黒猫",
@@ -219,6 +229,8 @@
     "check_update": "アップデートを確認 (v{ver})",
     "interact_menu": "反応・ガード",
     "system_menu": "環境設定",
-    "quit": "KuroCat を終了"
+    "quit": "KuroCat を終了",
+    "kb_75": "75% コンパクトキーボード",
+    "kb_87": "87 キー TKL"
   }
 }

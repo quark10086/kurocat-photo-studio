@@ -97,10 +97,11 @@ pub fn default_keyboard_layout() -> String {
 }
 
 pub fn normalize_keyboard_layout(raw: &str) -> String {
-    if raw.trim() == "108" {
-        "108".to_string()
-    } else {
-        "65".to_string()
+    match raw.trim() {
+        "108" => "108".to_string(),
+        "87" => "87".to_string(),
+        "75" => "75".to_string(),
+        _ => "65".to_string(),
     }
 }
 
@@ -207,6 +208,10 @@ pub struct AppSettings {
     pub headphone_mode: String,
     #[serde(default = "default_fps_cap")]
     pub fps_cap: u16,
+
+    /// Re-roll seed for the randomized mouse shell (per cat).
+    #[serde(default)]
+    pub mouse_style_seed: u32,
     #[serde(default = "default_language")]
     pub language: String,
 }
@@ -242,6 +247,7 @@ impl Default for AppSettings {
             collar_color: default_collar_color(),
             headphone_mode: default_headphone_mode(),
             fps_cap: default_fps_cap(),
+        mouse_style_seed: 0,
             language: default_language(),
         }
     }

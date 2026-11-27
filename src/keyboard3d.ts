@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import {
   getKeyboardLayout,
+  normalizeKeyboardLayoutId,
   resolveKeyByVk,
   type KeyboardLayoutId,
   type KeySpec,
 } from './keyboardLayout';
 import type { KeyboardOrientation } from './catEngine';
+import type { MouseStyle } from './mouseStyles';
 
 export class Spring1D {
   public x: number;
@@ -575,6 +577,9 @@ export class KeyboardAndMouse3D {
   // Cordless 3D KuroCat Mini Mouse
   private readonly mouseShape = new THREE.Group();
   private readonly mouseBodyMat: THREE.MeshBasicMaterial;
+  private readonly mouseSkirtMat: THREE.MeshBasicMaterial;
+  private mouseTint = '#ffffff';
+  private renderStyle3d = true;
   private readonly leftBtnMat: THREE.MeshBasicMaterial;
   private readonly rightBtnMat: THREE.MeshBasicMaterial;
   private readonly wheelMat: THREE.MeshBasicMaterial;
@@ -652,9 +657,10 @@ export class KeyboardAndMouse3D {
     mouseShadow.rotation.x = -Math.PI / 2;
     mouseShadow.position.set(0, 0.002, 0.012);
 
+    this.mouseSkirtMat = new THREE.MeshBasicMaterial({ color: '#b7b5ac' });
     const baseSkirt = new THREE.Mesh(
       new THREE.CylinderGeometry(MW * 0.96, MW * 0.92, 0.018, 24),
-      new THREE.MeshBasicMaterial({ color: '#b7b5ac' }),
+      this.mouseSkirtMat,
     );
     baseSkirt.scale.set(1, 1, ML / MW);
     baseSkirt.position.y = 0.008;
@@ -794,12 +800,23 @@ export class KeyboardAndMouse3D {
 
   public setStyle(style: '3d' | '2d'): void {
     const is3D = style === '3d';
+    this.renderStyle3d = is3D;
     this.mouseBodyMat.vertexColors = is3D;
-    this.mouseBodyMat.color.set(is3D ? '#ffffff' : '#f4f4f0');
+    this.mouseBodyMat.color.set(this.mouseTint);
     this.mouseBodyMat.needsUpdate = true;
   }
 
-  public rebuildBoard(layoutId: KeyboardLayoutId, orientation: KeyboardOrientation): void {
+  /** Randomized peripheral look: tint the shell, rubber skirt and wheel accent. */
+  public setMouseStyle(style: MouseStyle): void {
+    this.mouseTint = style.tint;
+    this.mouseBodyMat.color.set(style.tint);
+    this.mouseBodyMat.needsUpdate = true;
+    this.mouseSkirtMat.color.set(style.skirt);
+    this.mouseSkirtMat.needsUpdate = true;
+  }
+
+  public rebuildBoard(nextLayoutId: KeyboardLayoutId, orientation: KeyboardOrientation): void {
+    const layoutId = normalizeKeyboardLayoutId(nextLayoutId);
     // Skip redundant rebuild if nothing changed and meshes already exist
     if (this.sideInstanced && this.layoutId === layoutId && this.orientation === orientation) {
       return;

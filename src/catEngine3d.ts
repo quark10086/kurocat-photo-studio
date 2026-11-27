@@ -6,6 +6,7 @@ import {
   type CatSkinConfig,
 } from './catSkins';
 import type { KeyboardLayoutId } from './keyboardLayout';
+import type { MouseStyle } from './mouseStyles';
 import type { CatHitZone, KeyboardOrientation, PeekEdge, TailKeyMode } from './catEngine';
 import { DEFAULT_TAIL_KEY_IDS } from './catEngine';
 import { catAudio } from './audio';
@@ -2183,6 +2184,11 @@ export class KuroCatEngine3D {
     }
   }
 
+  /** Forwarded to the desk rig so the 3D mouse shares the cat's randomized shell. */
+  public setMouseStyle(style: MouseStyle): void {
+    this.desk.setMouseStyle(style);
+  }
+
   public setKeyboardConfig(layout: KeyboardLayoutId, orient: KeyboardOrientation): void {
     this.desk.rebuildBoard(layout, orient);
     this.paws.L.keyId = null;
@@ -2343,6 +2349,19 @@ export class KuroCatEngine3D {
 
   public triggerKneadDemo(): void {
     this.startIdleVignette('knead', 4.0);
+  }
+
+  /* ------------------------------------------------------------------ emotes
+   * 换岗动效 (salute / heart are the two 3D ones). Same trick as the 2D engine:
+   * reuse an existing vignette instead of adding a new skeletal animation.
+   */
+
+  public triggerSaluteDemo(): void {
+    this.startIdleVignette('groom', 1.5);
+  }
+
+  public triggerHeartDemo(): void {
+    this.triggerHappyDemo(2.6);
   }
 
   public setPeekEdge(edge: PeekEdge): void {

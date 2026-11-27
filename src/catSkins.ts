@@ -9,6 +9,10 @@ export interface CatSpot {
   opacity?: number;
 }
 
+import type { SpeciesKind } from './speciesBody';
+
+export type { SpeciesKind };
+
 export type CatPattern = 'solid' | 'bicolor' | 'tuxedo' | 'tabby' | 'calico' | 'siamese';
 export type CatFaceShape = 'round' | 'square' | 'wide' | 'fox' | 'oval';
 export type CatEarShape = 'cat' | 'round' | 'tall' | 'small' | 'wide';
@@ -80,12 +84,15 @@ export interface CatSkinConfig {
   earScale?: number;
   eyeSquint?: number;
   bodyChubbiness?: number;
+  /** Which creature this appearance belongs to (cat rig by default). */
+  species?: SpeciesKind;
 
   spots?: CatSpot[];
 }
 
 export interface ResolvedSkin {
   id: string;
+  species: SpeciesKind;
   name: string;
   isDarkBase: boolean;
   furColor: string;
@@ -218,6 +225,7 @@ export function resolveCustomSkin(raw: CatSkinConfig): ResolvedSkin {
 
   return {
     id: raw.id,
+    species: raw.species === 'snake' || raw.species === 'chicken' ? raw.species : 'cat',
     name: raw.name || raw.id,
     isDarkBase: darkBase,
     furColor: fur,

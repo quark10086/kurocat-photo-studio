@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { DEFAULT_TAIL_KEY_IDS, type KeyboardOrientation, type TailKeyMode } from './catEngine';
 import { DEFAULT_BUILTIN_CATS, type CatSkinConfig } from './catSkins';
 import { initCatStudio, type CatStudio } from './catStudio';
-import type { KeyboardLayoutId } from './keyboardLayout';
+import { normalizeKeyboardLayoutId, type KeyboardLayoutId } from './keyboardLayout';
 import {
   applyDomTranslations,
   isMacPlatform,
@@ -39,6 +39,7 @@ interface AppSettings {
   collarColor?: 'none' | 'red' | 'blue' | 'pink' | 'green';
   headphoneMode?: 'auto' | 'on' | 'off';
   fpsCap?: number;
+  mouseStyleSeed?: number;
   language?: string;
 }
 
@@ -88,6 +89,7 @@ let settings: AppSettings = {
   collarColor: 'none',
   headphoneMode: 'off',
   fpsCap: 0,
+  mouseStyleSeed: 0,
   language: 'auto',
 };
 
@@ -264,7 +266,7 @@ function syncUI(): void {
     updateScaleSliderVisual(settings.scale);
   }
 
-  const kbLayout: KeyboardLayoutId = settings.keyboardLayout === '108' ? '108' : '65';
+  const kbLayout: KeyboardLayoutId = normalizeKeyboardLayoutId(settings.keyboardLayout);
   const kbOrient: KeyboardOrientation = settings.keyboardOrientation === 'viewer' ? 'viewer' : 'cat';
   document.querySelectorAll<HTMLButtonElement>('[data-kblayout]').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.kblayout === kbLayout);
@@ -541,11 +543,16 @@ async function bootstrap(): Promise<void> {
     }
 
     const target = (e.target as HTMLElement).closest<HTMLElement>(
-      '[data-action], [data-breed], [data-rendermode], [data-collar], [data-headphonemode], [data-kblayout], [data-kborient], [data-tailmode], [data-fpscap]',
+      '[data-action], [data-breed], [data-rendermode], [data-collar], [data-headphonemode], [data-kblayout], [data-kborient], [data-tailmode], [data-fpscap], [data-mouseshuffle]',
     );
     if (!target) return;
 
     void initReadyPromise.then(() => {
+      if (target.closest('[data-mouseshuffle]')) {
+        void applySettingsPatch({ mouseStyleSeed: (settings.mouseStyleSeed ?? 0) + 1 });
+        return;
+      }
+
       const fpsAttr = target.dataset.fpscap;
       if (fpsAttr === '0' || fpsAttr === '30') {
         void applySettingsPatch({ fpsCap: fpsAttr === '30' ? 30 : 0 });
@@ -577,8 +584,8 @@ async function bootstrap(): Promise<void> {
       }
 
       const kbLayoutAttr = target.dataset.kblayout;
-      if (kbLayoutAttr === '65' || kbLayoutAttr === '108') {
-        void applySettingsPatch({ keyboardLayout: kbLayoutAttr });
+      if (kbLayoutAttr) {
+        void applySettingsPatch({ keyboardLayout: normalizeKeyboardLayoutId(kbLayoutAttr) });
         return;
       }
 

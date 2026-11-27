@@ -137,7 +137,17 @@
     "ear_round": "둥근 귀",
     "ear_tall": "긴 귀",
     "ear_small": "작은 귀",
-    "ear_wide": "넓은 귀"
+    "ear_wide": "넓은 귀",
+    "kb_75": "75% 컴팩트",
+    "kb_87": "87 TKL",
+    "kb_75_short": "75%",
+    "kb_87_short": "87 TKL",
+    "mouse_style": "마우스 스타일",
+    "mouse_shuffle": "🎲 다시 뽑기",
+    "studio_species": "종",
+    "species_cat": "고양이",
+    "species_snake": "뱀",
+    "species_chicken": "닭"
   },
   "breeds": {
     "black": "검은 고양이",
@@ -219,6 +229,8 @@
     "check_update": "업데이트 확인 (v{ver})",
     "interact_menu": "동반 설정",
     "system_menu": "환경 설정",
-    "quit": "KuroCat 종료"
+    "quit": "KuroCat 종료",
+    "kb_75": "75% 컴팩트 키보드",
+    "kb_87": "87키 TKL"
   }
 }

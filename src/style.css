@@ -2006,3 +2006,134 @@ html.win7-ulw-mode .scheme-a-menu #collar-row {
 .studio-status[data-kind='error'] {
   color: #ff8a8a;
 }
+
+/* ---- Cat Studio: simple / advanced colour panel ---- */
+.studio-modes {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 2px;
+}
+.studio-mode {
+  flex: 1 1 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfd3d6;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.studio-mode:hover { background: rgba(255, 255, 255, 0.1); }
+.studio-mode.active {
+  background: var(--accent, #d2f244);
+  border-color: var(--accent, #d2f244);
+  color: #1b1d20;
+}
+.studio-breeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.studio-breed-chip {
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d8dbde;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-breed-chip:hover { background: rgba(255, 255, 255, 0.1); }
+.studio-breed-chip.active {
+  border-color: var(--accent, #d2f244);
+  color: var(--accent, #d2f244);
+  background: rgba(210, 242, 68, 0.1);
+}
+.studio-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.studio-color-group {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.studio-color-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #9aa0a6;
+  margin-bottom: 6px;
+}
+.studio-color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+}
+.studio-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: #c9cdd1;
+}
+.studio-color-row input[type='color'] {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.studio-color-row input[type='color'][data-inherited='true'] {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.studio-fields.hidden,
+.studio-advanced.hidden,
+.studio-breeds.hidden {
+  display: none;
+}
+
+/* Solo action button (randomized mouse shell re-roll) */
+.seg-btn-solo {
+  padding: 5px 12px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.seg-btn-solo:hover {
+  background: rgba(200, 245, 56, 0.14);
+  color: #c8f538;
+  border-color: rgba(200, 245, 56, 0.4);
+}
+/* Species selector inside the cat studio */
+.studio-field-wide {
+  grid-column: 1 / -1;
+}
+
+.studio-species {
+  width: 100%;
+}
+
+.studio-species .seg-btn {
+  font-size: 11.5px;
+  padding: 6px 4px;
+}

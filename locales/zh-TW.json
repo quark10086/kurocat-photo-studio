@@ -137,7 +137,17 @@
     "ear_round": "圓耳",
     "ear_tall": "尖長耳",
     "ear_small": "小耳",
-    "ear_wide": "寬耳"
+    "ear_wide": "寬耳",
+    "kb_75": "75% 便攜",
+    "kb_87": "87 TKL",
+    "kb_75_short": "75% 便攜",
+    "kb_87_short": "87 TKL",
+    "mouse_style": "滑鼠樣式",
+    "mouse_shuffle": "🎲 換一個",
+    "studio_species": "物種",
+    "species_cat": "貓",
+    "species_snake": "蛇",
+    "species_chicken": "雞"
   },
   "breeds": {
     "black": "經典小黑貓",
@@ -219,6 +229,8 @@
     "check_update": "檢查更新 (v{ver})",
     "interact_menu": "陪伴與互動",
     "system_menu": "偏好與系統",
-    "quit": "結束 KuroCat"
+    "quit": "結束 KuroCat",
+    "kb_75": "75% 便攜鍵盤",
+    "kb_87": "87 鍵 TKL"
   }
 }

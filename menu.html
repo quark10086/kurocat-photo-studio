@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN" class="menu-window-mode">
   <head>
     <meta charset="UTF-8" />
@@ -184,12 +184,18 @@
 
             <div class="setting-row">
               <span class="setting-label" data-i18n="menu.kb_layout_short">键盘配列</span>
-              <div class="seg-control seg-2">
+              <div class="seg-control seg-4">
                 <button class="seg-btn active" data-kblayout="65" data-i18n="menu.kb_65_short" type="button">65% 紧凑</button>
+                <button class="seg-btn" data-kblayout="75" data-i18n="menu.kb_75_short" type="button">75% 便携</button>
+                <button class="seg-btn" data-kblayout="87" data-i18n="menu.kb_87_short" type="button">87 TKL</button>
                 <button class="seg-btn" data-kblayout="108" data-i18n="menu.kb_108_short" type="button">108 全尺寸</button>
               </div>
             </div>
 
+            <div class="setting-row">
+              <span class="setting-label" data-i18n="menu.mouse_style">鼠标样式</span>
+              <button class="seg-btn seg-btn-solo" id="btn-mouse-shuffle" data-mouseshuffle type="button" data-i18n="menu.mouse_shuffle">🎲 换一个</button>
+            </div>
             <div class="setting-row">
               <span class="setting-label" data-i18n="menu.kb_orient_short">朝向视角</span>
               <div class="seg-control seg-2">
@@ -383,7 +389,20 @@
               <span class="studio-source-tag" data-i18n="menu.studio_source">原图</span>
             </div>
           </div>
-          <div class="studio-fields">
+          <div class="studio-modes">
+            <button class="studio-mode active" id="studio-mode-simple" type="button">简易 Simple</button>
+            <button class="studio-mode" id="studio-mode-advanced" type="button">高级 Advanced</button>
+          </div>
+          <div class="studio-breeds hidden" id="studio-breeds"></div>
+          <div class="studio-fields" id="studio-simple">
+            <div class="studio-field studio-field-wide">
+              <span data-i18n="menu.studio_species">物种</span>
+              <div class="seg-control seg-3 studio-species" id="studio-species">
+                <button class="seg-btn active" data-species="cat" type="button" data-i18n="menu.species_cat">猫</button>
+                <button class="seg-btn" data-species="snake" type="button" data-i18n="menu.species_snake">蛇</button>
+                <button class="seg-btn" data-species="chicken" type="button" data-i18n="menu.species_chicken">鸡</button>
+              </div>
+            </div>
             <label class="studio-field">
               <span data-i18n="menu.studio_name">名字</span>
               <input id="studio-name" type="text" maxlength="24" />
@@ -440,6 +459,7 @@
               <input id="studio-squint" type="range" min="0" max="70" step="1" />
             </label>
           </div>
+          <div class="studio-advanced hidden" id="studio-advanced"></div>
         </div>
         <div class="studio-foot">
           <button class="studio-btn ghost" id="studio-repick" type="button" data-i18n="menu.studio_repick">

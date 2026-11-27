@@ -13,6 +13,7 @@ import type {
   CatSkinConfig,
   CatSpot,
 } from './catSkins';
+import { matchBreeds, type BreedFeatures, type BreedMatch } from './catBreeds';
 
 export interface PhotoPaletteEntry {
   hex: string;
@@ -27,8 +28,21 @@ export interface PhotoPaletteEntry {
   ringShare: number;
 }
 
+/** Dominant colour of a body part, or null when the photo cannot show it. */
+export interface PhotoRegionColors {
+  head: string | null;
+  body: string | null;
+  belly: string | null;
+  limbs: string | null;
+  tail: string | null;
+}
+
 export interface PhotoAnalysis {
   palette: PhotoPaletteEntry[];
+  /** Per-part colours, used to fill the advanced colour panel. */
+  regions: PhotoRegionColors;
+  /** Best matching breed profiles, highest score first. */
+  breeds: BreedMatch[];
   furColor: string;
   bellyBibColor: string | null;
   stripeColor: string | null;
@@ -48,6 +62,73 @@ export interface PhotoAnalysis {
 }
 
 const MAX_ANALYSIS_SIDE = 168;
+
+/**
+ * Split the subject into rough body bands and report the dominant cluster of
+ * each one. A mean colour would smear a tabby's stripes into mud, so every band
+ * votes for an existing palette cluster instead.
+ */
+function sampleRegions(
+  width: number,
+  samples: Sample[],
+  clusters: Cluster[],
+  stats: { minX: number; maxX: number; minY: number; maxY: number },
+): PhotoRegionColors {
+  const bboxW = Math.max(1, stats.maxX - stats.minX + 1);
+  const bboxH = Math.max(1, stats.maxY - stats.minY + 1);
+  const cx = stats.minX + bboxW / 2;
+  const minVotes = Math.max(20, Math.round(samples.length * 0.008));
+
+  const votes = new Int32Array(clusters.length);
+  const nearest = (r: number, g: number, b: number): number => {
+    let best = 0;
+    let bestD = Infinity;
+    for (let c = 0; c < clusters.length; c += 1) {
+      const cl = clusters[c];
+      const d = Math.abs(cl.r - r) + Math.abs(cl.g - g) + Math.abs(cl.b - b);
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
+  };
+
+  const sampleRegion = (
+    test: (x: number, y: number) => boolean,
+  ): string | null => {
+    votes.fill(0);
+    let n = 0;
+    for (const s of samples) {
+      const x = s.idx % width;
+      const y = (s.idx - x) / width;
+      if (!test(x, y)) continue;
+      votes[nearest(s.r, s.g, s.b)] += 1;
+      n += 1;
+    }
+    if (n < minVotes) return null;
+    let best = -1;
+    for (let c = 0; c < clusters.length; c += 1) {
+      if (best < 0 || votes[c] > votes[best]) best = c;
+    }
+    if (best < 0 || votes[best] / n < 0.34) return null;
+    const cl = clusters[best];
+    return toHex(cl.r, cl.g, cl.b);
+  };
+
+  const headBand = stats.minY + bboxH * 0.36;
+  const bodyBand = stats.minY + bboxH * 0.74;
+
+  return {
+    head: sampleRegion((_x, y) => y < headBand),
+    body: sampleRegion((_x, y) => y >= headBand && y < bodyBand),
+    belly: sampleRegion(
+      (x, y) => y >= headBand && y < bodyBand && Math.abs(x - cx) < bboxW * 0.24,
+    ),
+    limbs: sampleRegion((_x, y) => y >= bodyBand),
+    tail: sampleRegion((x) => x > stats.maxX - bboxW * 0.15),
+  };
+}
 
 /* ---------------------------------------------------------------- colours */
 
@@ -697,8 +778,30 @@ export function analyzePhoto(
     l: Number(c.l.toFixed(3)),
   }));
 
+  // --- per-part colours + breed hint ---------------------------------------
+  const regions = sampleRegions(width, subjectSamples, clusters, stats);
+  const [fr, fg, fb] = hexToRgb(furColor);
+  const [er, eg, eb] = hexToRgb(eyeColor);
+  const furHsl = rgbToHsl(fr, fg, fb);
+  const eyeHsl = rgbToHsl(er, eg, eb);
+  const features: BreedFeatures = {
+    hue: furHsl.h,
+    light: furHsl.l,
+    sat: furHsl.s,
+    pattern,
+    faceShape,
+    earShape,
+    eyeHue: eyeHsl.h,
+    eyeSat: eyeHsl.s,
+    hasWhite: Boolean(nearWhite && nearWhite.weight > 0.05),
+    hasDark: Boolean(darkCluster && darkCluster.weight > 0.07),
+  };
+  const breeds = matchBreeds(features, 3);
+
   const analysis: PhotoAnalysis = {
     palette,
+    regions,
+    breeds,
     furColor,
     bellyBibColor,
     stripeColor,
@@ -732,6 +835,13 @@ export function analyzePhoto(
     spots: buildSpots(pattern, calicoPatchColor, stripeColor),
     accentColor: eyeColor,
     accentSideColor: shiftLightness(eyeColor, -0.18),
+    // Per-part colours measured above; the advanced panel exposes them so the
+    // user can nudge ears / limbs / tail away from the auto guess.
+    earOuterColor: regions.head ?? undefined,
+    earInnerColor: regions.belly ? shiftLightness(regions.belly, -0.05) : undefined,
+    armColor: regions.limbs ?? undefined,
+    pawColor: regions.limbs ? shiftLightness(regions.limbs, 0.1) : undefined,
+    tailColor: regions.tail ?? undefined,
   };
 
   return { analysis, config };

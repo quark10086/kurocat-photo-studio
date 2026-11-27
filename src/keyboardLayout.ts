@@ -1,4 +1,6 @@
-export type KeyboardLayoutId = '65' | '108';
+export type KeyboardLayoutId = '65' | '75' | '87' | '108';
+
+export const KEYBOARD_LAYOUT_IDS: KeyboardLayoutId[] = ['65', '75', '87', '108'];
 
 export interface KeySpec {
   id: string;
@@ -225,6 +227,120 @@ export const KEYBOARD_KEYS_108: KeySpec[] = [
   { id: 'np_dot', label: '.', bubble: 'Num.', row: 5, rowY: 5.25, uStart: NUM_X + 2, uWidth: 1, vkCodes: [0x6e] },
 ];
 
+// --- 75% compact (84-key) and 87-key TKL -------------------------------------
+// Both are defined by re-using the key specs of the two classic layouts above, so
+// labels, bubbles and VK mappings stay single-sourced. Only the geometry differs.
+const REF_KEYS = new Map<string, KeySpec>();
+for (const key of [...KEYBOARD_KEYS_65, ...KEYBOARD_KEYS_108]) {
+  if (!REF_KEYS.has(key.id)) REF_KEYS.set(key.id, key);
+}
+
+type KeyTuple = [id: string, uStart: number, uWidth?: number, accent?: 'orange' | 'mod'];
+
+function buildRow(rowY: number, tuples: KeyTuple[]): KeySpec[] {
+  return tuples.map(([id, uStart, uWidth = 1, accent]) => {
+    const ref = REF_KEYS.get(id);
+    if (!ref) throw new Error(`unknown key id: ${id}`);
+    return {
+      id,
+      label: ref.label,
+      bubble: ref.bubble,
+      row: Math.floor(rowY),
+      rowY,
+      uStart,
+      uWidth,
+      accent: accent ?? ref.accent,
+      vkCodes: ref.vkCodes,
+    };
+  });
+}
+
+// 75% ANSI (84 keys, 16U x 6 rows): function row with Del, arrow cluster tucked right.
+export const KEYBOARD_KEYS_75: KeySpec[] = [
+  ...buildRow(0, [
+    ['esc', 0],
+    ['f1', 1], ['f2', 2], ['f3', 3], ['f4', 4],
+    ['f5', 5], ['f6', 6], ['f7', 7], ['f8', 8],
+    ['f9', 9], ['f10', 10], ['f11', 11], ['f12', 12],
+    ['del', 13.75],
+  ]),
+  ...buildRow(1, [
+    ['grave', 0],
+    ['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5', 5], ['6', 6],
+    ['7', 7], ['8', 8], ['9', 9], ['0', 10],
+    ['minus', 11], ['equal', 12], ['bs', 13, 2.25],
+  ]),
+  ...buildRow(2, [
+    ['tab', 0, 1.5, 'mod'],
+    ['q', 1.5], ['w', 2.5], ['e', 3.5], ['r', 4.5], ['t', 5.5], ['y', 6.5],
+    ['u', 7.5], ['i', 8.5], ['o', 9.5], ['p', 10.5],
+    ['lb', 11.5], ['rb', 12.5], ['bslash', 13.5, 1.75, 'mod'],
+  ]),
+  ...buildRow(3, [
+    ['caps', 0, 1.75, 'mod'],
+    ['a', 1.75], ['s', 2.75], ['d', 3.75], ['f', 4.75], ['g', 5.75],
+    ['h', 6.75], ['j', 7.75], ['k', 8.75], ['l', 9.75],
+    ['semi', 10.75], ['quote', 11.75], ['enter', 12.75, 2.5, 'mod'],
+  ]),
+  ...buildRow(4, [
+    ['lshift', 0, 2.25, 'mod'],
+    ['z', 2.25], ['x', 3.25], ['c', 4.25], ['v', 5.25], ['b', 6.25],
+    ['n', 7.25], ['m', 8.25], ['comma', 9.25], ['dot', 10.25], ['slash', 11.25],
+    ['rshift', 12.25, 2, 'orange'],
+    ['up', 14.25, 1, 'mod'],
+  ]),
+  ...buildRow(5, [
+    ['lctrl', 0, 1.25, 'mod'], ['lwin', 1.25, 1.25, 'mod'], ['lalt', 2.5, 1.25, 'mod'],
+    ['space', 3.75, 6.25],
+    ['ralt', 10, 1, 'mod'], ['menu', 11, 1, 'mod'], ['rctrl', 12, 1, 'mod'],
+    ['left', 13, 1, 'mod'], ['down', 14, 1, 'mod'], ['right', 15, 1, 'mod'],
+  ]),
+];
+
+// 87-key ANSI TKL (18.25U x 6 rows): full function row + navigation cluster, no numpad.
+export const KEYBOARD_KEYS_87: KeySpec[] = [
+  ...buildRow(0, [
+    ['esc', 0],
+    ['f1', 2], ['f2', 3], ['f3', 4], ['f4', 5],
+    ['f5', 6.5], ['f6', 7.5], ['f7', 8.5], ['f8', 9.5],
+    ['f9', 11], ['f10', 12], ['f11', 13], ['f12', 14],
+    ['prt', 15.25], ['scr', 16.25], ['pau', 17.25],
+  ]),
+  ...buildRow(1, [
+    ['grave', 0],
+    ['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5', 5], ['6', 6],
+    ['7', 7], ['8', 8], ['9', 9], ['0', 10],
+    ['minus', 11], ['equal', 12], ['bs', 13, 2],
+    ['ins', 15.25], ['home', 16.25], ['pgup', 17.25],
+  ]),
+  ...buildRow(2, [
+    ['tab', 0, 1.5, 'mod'],
+    ['q', 1.5], ['w', 2.5], ['e', 3.5], ['r', 4.5], ['t', 5.5], ['y', 6.5],
+    ['u', 7.5], ['i', 8.5], ['o', 9.5], ['p', 10.5],
+    ['lb', 11.5], ['rb', 12.5], ['bslash', 13.5, 1.5, 'mod'],
+    ['del', 15.25], ['end', 16.25], ['pgdn', 17.25],
+  ]),
+  ...buildRow(3, [
+    ['caps', 0, 1.75, 'mod'],
+    ['a', 1.75], ['s', 2.75], ['d', 3.75], ['f', 4.75], ['g', 5.75],
+    ['h', 6.75], ['j', 7.75], ['k', 8.75], ['l', 9.75],
+    ['semi', 10.75], ['quote', 11.75], ['enter', 12.75, 2.25, 'mod'],
+  ]),
+  ...buildRow(4, [
+    ['lshift', 0, 2.25, 'mod'],
+    ['z', 2.25], ['x', 3.25], ['c', 4.25], ['v', 5.25], ['b', 6.25],
+    ['n', 7.25], ['m', 8.25], ['comma', 9.25], ['dot', 10.25], ['slash', 11.25],
+    ['rshift', 12.25, 1.75, 'orange'],
+    ['up', 16.25, 1, 'mod'],
+  ]),
+  ...buildRow(5, [
+    ['lctrl', 0, 1.25, 'mod'], ['lwin', 1.25, 1.25, 'mod'], ['lalt', 2.5, 1.25, 'mod'],
+    ['space', 3.75, 6.25],
+    ['ralt', 10, 1.25, 'mod'], ['rwin', 11.25, 1.25, 'mod'],
+    ['menu', 12.5, 1.25, 'mod'], ['rctrl', 13.75, 1.25, 'mod'],
+    ['left', 15.25, 1, 'mod'], ['down', 16.25, 1, 'mod'], ['right', 17.25, 1, 'mod'],
+  ]),
+];
 export const KEYBOARD_KEYS = KEYBOARD_KEYS_65;
 
 export const KEYBOARD_LAYOUTS: Record<KeyboardLayoutId, KeyboardLayoutDef> = {
@@ -233,6 +349,18 @@ export const KEYBOARD_LAYOUTS: Record<KeyboardLayoutId, KeyboardLayoutDef> = {
     totalUnits: 15,
     totalRows: 5,
     keys: KEYBOARD_KEYS_65,
+  },
+  '75': {
+    id: '75',
+    totalUnits: 16,
+    totalRows: 6,
+    keys: KEYBOARD_KEYS_75,
+  },
+  '87': {
+    id: '87',
+    totalUnits: 18.25,
+    totalRows: 6,
+    keys: KEYBOARD_KEYS_87,
   },
   '108': {
     id: '108',
@@ -244,15 +372,28 @@ export const KEYBOARD_LAYOUTS: Record<KeyboardLayoutId, KeyboardLayoutDef> = {
 
 const vkLookups: Record<KeyboardLayoutId, Map<number, KeySpec>> = {
   '65': new Map<number, KeySpec>(),
+  '75': new Map<number, KeySpec>(),
+  '87': new Map<number, KeySpec>(),
   '108': new Map<number, KeySpec>(),
 };
 
-for (const layoutId of ['65', '108'] as const) {
+for (const layoutId of KEYBOARD_LAYOUT_IDS) {
   for (const key of KEYBOARD_LAYOUTS[layoutId].keys) {
     for (const vk of key.vkCodes) {
       vkLookups[layoutId].set(vk, key);
     }
   }
+}
+
+/** Anything wider than 16U behaves like a desktop board (leaning, hip clamp, pivot shift). */
+export function isWideKeyboard(layoutId: KeyboardLayoutId): boolean {
+  return (KEYBOARD_LAYOUTS[layoutId] ?? KEYBOARD_LAYOUTS['65']).totalUnits > 16;
+}
+
+/** Normalizes persisted/UI values so unknown strings never leak into the renderers. */
+export function normalizeKeyboardLayoutId(raw: string | null | undefined): KeyboardLayoutId {
+  const value = (raw ?? '').trim();
+  return (KEYBOARD_LAYOUT_IDS as string[]).includes(value) ? (value as KeyboardLayoutId) : '65';
 }
 
 export function getKeyboardLayout(layoutId: KeyboardLayoutId): KeyboardLayoutDef {
@@ -262,7 +403,7 @@ export function getKeyboardLayout(layoutId: KeyboardLayoutId): KeyboardLayoutDef
 export function resolveKeyByVk(vk: number, layoutId: KeyboardLayoutId = '65'): KeySpec | null {
   const direct = vkLookups[layoutId].get(vk);
   if (direct) return direct;
-  if (layoutId === '65' && vk >= 0x70 && vk <= 0x87) {
+  if ((layoutId === '65' || layoutId === '75') && vk >= 0x70 && vk <= 0x87) {
     const idx = Math.min(12, Math.max(1, vk - 0x6f));
     return KEYBOARD_KEYS_65[idx] ?? KEYBOARD_KEYS_65[0];
   }

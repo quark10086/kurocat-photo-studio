@@ -137,7 +137,17 @@
     "ear_round": "Round",
     "ear_tall": "Tall",
     "ear_small": "Small",
-    "ear_wide": "Wide"
+    "ear_wide": "Wide",
+    "kb_75": "75% compact",
+    "kb_87": "87 TKL",
+    "kb_75_short": "75% compact",
+    "kb_87_short": "87 TKL",
+    "mouse_style": "Mouse shell",
+    "mouse_shuffle": "🎲 Roll again",
+    "studio_species": "Species",
+    "species_cat": "Cat",
+    "species_snake": "Snake",
+    "species_chicken": "Chicken"
   },
   "breeds": {
     "black": "Black Cat",
@@ -219,6 +229,8 @@
     "check_update": "Check for Updates (v{ver})",
     "interact_menu": "Companion",
     "system_menu": "Preferences",
-    "quit": "Quit KuroCat"
+    "quit": "Quit KuroCat",
+    "kb_75": "75% compact keyboard",
+    "kb_87": "87-key TKL"
   }
 }

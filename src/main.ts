@@ -12,8 +12,10 @@ import {
 import { catAudio } from './audio';
 import { AgentCompanionController, type AgentCompanionEvent } from './agentCompanion';
 import { DEFAULT_BUILTIN_CATS, type CatSkinConfig } from './catSkins';
+import { mouseStyleFor } from './mouseStyles';
 import {
   getKeyboardLayout,
+  normalizeKeyboardLayoutId,
   resolveKeyByVk,
   type KeyboardLayoutDef,
   type KeyboardLayoutId,
@@ -58,6 +60,7 @@ interface AppSettings {
   collarColor?: CollarColorId;
   headphoneMode?: HeadphoneMode;
   fpsCap?: number;
+  mouseStyleSeed?: number;
   language?: string;
 }
 
@@ -158,6 +161,7 @@ let settings: AppSettings = {
   collarColor: 'none',
   headphoneMode: 'off',
   fpsCap: 0,
+  mouseStyleSeed: 0,
   language: 'auto',
 };
 
@@ -313,10 +317,16 @@ function shouldWearHeadphonesNow(): boolean {
   return gameActive;
 }
 
+function activeSpecies(): 'cat' | 'snake' | 'chicken' {
+  const cat = catList.find((entry) => entry.id === settings.catBreed);
+  return cat?.species === 'snake' || cat?.species === 'chicken' ? cat.species : 'cat';
+}
+
 function wants3DNow(): boolean {
   return (
     settings.renderMode !== '2d' &&
     settings.catBreed !== 'dafeiyu' &&
+    activeSpecies() === 'cat' &&
     !tailPickerOpen &&
     !isWin7Ulw &&
     !webgl3dUnavailable
@@ -326,7 +336,7 @@ function wants3DNow(): boolean {
 function syncEngine3DState(): void {
   if (!engine3d) return;
   const activeCat = catList.find((c) => c.id === settings.catBreed) ?? catList[0];
-  const kbLayout: KeyboardLayoutId = settings.keyboardLayout === '108' ? '108' : '65';
+  const kbLayout: KeyboardLayoutId = normalizeKeyboardLayoutId(settings.keyboardLayout);
   const kbOrient: KeyboardOrientation = settings.keyboardOrientation === 'viewer' ? 'viewer' : 'cat';
   const tailMode: TailKeyMode =
     settings.tailKeyMode === 'custom' ||
@@ -499,7 +509,7 @@ function syncMenuUI(): void {
     updateScaleSliderVisual(settings.scale);
   }
 
-  const kbLayout: KeyboardLayoutId = settings.keyboardLayout === '108' ? '108' : '65';
+  const kbLayout: KeyboardLayoutId = normalizeKeyboardLayoutId(settings.keyboardLayout);
   const kbOrient: KeyboardOrientation = settings.keyboardOrientation === 'viewer' ? 'viewer' : 'cat';
   const tailMode: TailKeyMode =
     settings.tailKeyMode === 'custom' ||
@@ -586,6 +596,9 @@ function syncMenuUI(): void {
   engine.setCatAppearance(activeCat?.id || 'black', activeCat);
   engine.setHeadphones(shouldWearHeadphonesNow());
   engine.setKeyboardConfig(kbLayout, kbOrient);
+  const mouseStyle = mouseStyleFor(activeCat?.id || 'black', settings.mouseStyleSeed ?? 0);
+  engine.setMouseStyle(mouseStyle);
+  engine3d?.setMouseStyle(mouseStyle);
   engine.setTailKeyConfig(tailMode, tailIds);
   engine.setFpsCap(fpsCapNum);
   engine3d?.setFpsCap(fpsCapNum);
@@ -1179,12 +1192,17 @@ async function bootstrap(): Promise<void> {
   await listen<AppSettings>('kuro-settings', (ev) => {
     const prevLock = lastKnownLockState;
     const prevRenderMode = settings.renderMode;
+    const prevBreed = settings.catBreed;
     settings = ev.payload;
     if (prevRenderMode === '2d' && settings.renderMode !== '2d') {
       webgl3dUnavailable = false;
     }
     lastKnownLockState = settings.clickThroughLocked;
     syncMenuUI();
+    // 换岗动效: a random emote whenever the active cat actually changes.
+    if (prevBreed && settings.catBreed && prevBreed !== settings.catBreed) {
+      agentCompanion.playSwitchEmote();
+    }
     if (prevLock !== null && prevLock !== settings.clickThroughLocked) {
       if (settings.clickThroughLocked) {
         showUpdateToast(formatLockedToastText(false), {
@@ -1251,7 +1269,7 @@ async function bootstrap(): Promise<void> {
   let cancelPendingTapVsDrag: (() => void) | null = null;
 
   const computeKeySoundPan = (vk: number): number => {
-    const kbLayout: KeyboardLayoutId = settings.keyboardLayout === '108' ? '108' : '65';
+    const kbLayout: KeyboardLayoutId = normalizeKeyboardLayoutId(settings.keyboardLayout);
     const spec = resolveKeyByVk(vk, kbLayout);
     if (!spec) return 0;
     const layout = getKeyboardLayout(kbLayout);
@@ -1678,9 +1696,14 @@ async function bootstrap(): Promise<void> {
 
   menuEl.addEventListener('click', (e) => {
     const target = (e.target as HTMLElement).closest<HTMLElement>(
-      '[data-action], [data-scale], [data-breed], [data-rendermode], [data-collar], [data-headphonemode], [data-kblayout], [data-kborient], [data-tailmode], [data-fpscap], [data-lang]',
+      '[data-action], [data-scale], [data-breed], [data-rendermode], [data-collar], [data-headphonemode], [data-kblayout], [data-kborient], [data-tailmode], [data-fpscap], [data-lang], [data-mouseshuffle]',
     );
     if (!target) return;
+
+    if (target.dataset.mouseshuffle !== undefined) {
+      void applySettingsPatch({ mouseStyleSeed: (settings.mouseStyleSeed ?? 0) + 1 });
+      return;
+    }
 
     const fpsAttr = target.dataset.fpscap;
     if (fpsAttr === '0' || fpsAttr === '30') {
@@ -1719,8 +1742,8 @@ async function bootstrap(): Promise<void> {
     }
 
     const kbLayoutAttr = target.dataset.kblayout;
-    if (kbLayoutAttr === '65' || kbLayoutAttr === '108') {
-      void applySettingsPatch({ keyboardLayout: kbLayoutAttr });
+    if (kbLayoutAttr) {
+      void applySettingsPatch({ keyboardLayout: normalizeKeyboardLayoutId(kbLayoutAttr) });
       closeContextMenu();
       return;
     }

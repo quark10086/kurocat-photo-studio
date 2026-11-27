@@ -17,10 +17,87 @@ import type {
 } from './catSkins';
 import { t } from './i18n';
 import { analyzePhoto, shiftLightness, type PhotoAnalysis, type PhotoSource } from './photoCat';
+import { applyBreedPreset, type BreedMatch } from './catBreeds';
 
 const PATTERNS: CatPattern[] = ['solid', 'bicolor', 'tuxedo', 'tabby', 'calico', 'siamese'];
 const FACE_SHAPES: CatFaceShape[] = ['round', 'square', 'wide', 'fox', 'oval'];
 const EAR_SHAPES: CatEarShape[] = ['cat', 'round', 'tall', 'small', 'wide'];
+
+type ColorKey =
+  | 'earOuterColor'
+  | 'earInnerColor'
+  | 'earTipColor'
+  | 'maskColor'
+  | 'foreheadBridgeColor'
+  | 'armColor'
+  | 'pawColor'
+  | 'tailColor'
+  | 'tailTipColor'
+  | 'flankColor'
+  | 'bellyBibColor'
+  | 'stripeColor'
+  | 'calicoPatchColor'
+  | 'whiskerColor';
+
+interface ColorFieldSpec {
+  key: ColorKey;
+  /** Bilingual label so the advanced panel needs no extra locale files. */
+  label: string;
+}
+
+interface ColorGroupSpec {
+  id: string;
+  label: string;
+  fields: ColorFieldSpec[];
+}
+
+/** Advanced colour panel: grouped exactly the way the request asked for. */
+const COLOR_GROUPS: ColorGroupSpec[] = [
+  {
+    id: 'ear',
+    label: '耳朵 Ears',
+    fields: [
+      { key: 'earOuterColor', label: '耳外 Outer' },
+      { key: 'earInnerColor', label: '耳内 Inner' },
+      { key: 'earTipColor', label: '耳尖 Tip' },
+    ],
+  },
+  {
+    id: 'head',
+    label: '头部 Head',
+    fields: [
+      { key: 'maskColor', label: '面罩 Mask' },
+      { key: 'foreheadBridgeColor', label: '额桥 Bridge' },
+      { key: 'whiskerColor', label: '胡须 Whisker' },
+    ],
+  },
+  {
+    id: 'limbs',
+    label: '四肢 Limbs',
+    fields: [
+      { key: 'armColor', label: '前肢 Arm' },
+      { key: 'pawColor', label: '爪 Paw' },
+    ],
+  },
+  {
+    id: 'tail',
+    label: '尾巴 Tail',
+    fields: [
+      { key: 'tailColor', label: '尾身 Base' },
+      { key: 'tailTipColor', label: '尾尖 Tip' },
+    ],
+  },
+  {
+    id: 'body',
+    label: '躯干 Body',
+    fields: [
+      { key: 'flankColor', label: '侧腹 Flank' },
+      { key: 'bellyBibColor', label: '腹部 Belly' },
+      { key: 'stripeColor', label: '条纹 Stripe' },
+      { key: 'calicoPatchColor', label: '斑块 Patch' },
+    ],
+  },
+];
 
 export interface CatStudioHandlers {
   /** Called after a successful save with the refreshed cat list and the new id. */
@@ -87,6 +164,14 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
   const saveBtn = el<HTMLButtonElement>('studio-save');
   const repickBtn = el<HTMLButtonElement>('studio-repick');
   const closeBtn = el<HTMLButtonElement>('studio-close');
+  const advancedWrap = el<HTMLDivElement>('studio-advanced');
+  const breedsWrap = el<HTMLDivElement>('studio-breeds');
+  const modeSimpleBtn = el<HTMLButtonElement>('studio-mode-simple');
+  const modeAdvancedBtn = el<HTMLButtonElement>('studio-mode-advanced');
+  const simpleFieldsEl = el<HTMLDivElement>('studio-simple');
+  const speciesWrap = el<HTMLDivElement>('studio-species');
+
+  const colorInputs = new Map<ColorKey, HTMLInputElement>();
 
   let engine: KuroCatEngine | null = null;
   let bitmap: PhotoSource | null = null;
@@ -136,6 +221,147 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
     earSel.value = config.earShape || 'cat';
     chubbyInput.value = String(Math.round((config.bodyChubbiness ?? 1) * 100));
     squintInput.value = String(Math.round((config.eyeSquint ?? 0) * 100));
+    syncSpeciesButtons();
+    syncAdvancedControls();
+  }
+
+  /* ------------------------------------------------------- species selector */
+
+  function syncSpeciesButtons(): void {
+    if (!speciesWrap) return;
+    const active = config?.species === 'snake' || config?.species === 'chicken' ? config.species : 'cat';
+    speciesWrap.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.species === active);
+    });
+    if (breedsWrap) breedsWrap.classList.toggle('hidden', active !== 'cat');
+  }
+
+  if (speciesWrap) {
+    speciesWrap.addEventListener('click', (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-species]');
+      if (!btn || !config) return;
+      const next = btn.dataset.species;
+      config.species = next === 'snake' || next === 'chicken' ? next : 'cat';
+      syncSpeciesButtons();
+      pushPreview();
+      setStatus(t('menu.studio_ready'), 'ok');
+    });
+  }
+  /* ------------------------------------------------- advanced colour panel */
+
+  function buildAdvancedPanel(): void {
+    if (!advancedWrap || colorInputs.size > 0) return;
+    advancedWrap.textContent = '';
+    for (const group of COLOR_GROUPS) {
+      const section = document.createElement('div');
+      section.className = 'studio-color-group';
+      const title = document.createElement('div');
+      title.className = 'studio-color-title';
+      title.textContent = group.label;
+      section.appendChild(title);
+      const grid = document.createElement('div');
+      grid.className = 'studio-color-grid';
+      for (const field of group.fields) {
+        const row = document.createElement('label');
+        row.className = 'studio-color-row';
+        const span = document.createElement('span');
+        span.textContent = field.label;
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.dataset.colorKey = field.key;
+        input.value = '#888888';
+        input.addEventListener('input', () => {
+          if (!config) return;
+          const rec = config as unknown as Record<string, string | undefined>;
+          rec[field.key] = input.value;
+          if (field.key === 'bellyBibColor' && bellyInput) bellyInput.value = input.value;
+          if (field.key === 'armColor') {
+            const paw = colorInputs.get('pawColor');
+            if (paw && !config.pawColor) {
+              paw.value = shiftLightness(input.value, 0.08);
+              rec.pawColor = paw.value;
+            }
+          }
+          pushPreview();
+        });
+        row.appendChild(span);
+        row.appendChild(input);
+        grid.appendChild(row);
+        colorInputs.set(field.key, input);
+      }
+      section.appendChild(grid);
+      advancedWrap.appendChild(section);
+    }
+  }
+
+  function colorKeys(): ColorKey[] {
+    return COLOR_GROUPS.flatMap((g) => g.fields.map((f) => f.key));
+  }
+
+  function syncAdvancedControls(): void {
+    if (!config) return;
+    const rec = config as unknown as Record<string, string | undefined>;
+    for (const key of colorKeys()) {
+      const input = colorInputs.get(key);
+      if (!input) continue;
+      const value = rec[key];
+      if (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)) {
+        input.value = value;
+        input.dataset.inherited = 'false';
+      } else {
+        // No explicit colour: show the inherited fur colour so the swatch is
+        // never a misleading black hole.
+        input.value = key === 'bellyBibColor' ? config.bellyBibColor ?? config.furColor : config.furColor;
+        input.dataset.inherited = 'true';
+      }
+    }
+  }
+
+  function setPanelMode(mode: 'simple' | 'advanced'): void {
+    const advanced = mode === 'advanced';
+    advancedWrap?.classList.toggle('hidden', !advanced);
+    simpleFieldsEl?.classList.toggle('hidden', advanced);
+    modeSimpleBtn?.classList.toggle('active', !advanced);
+    modeAdvancedBtn?.classList.toggle('active', advanced);
+    if (advanced) {
+      buildAdvancedPanel();
+      syncAdvancedControls();
+    }
+  }
+
+  /* ----------------------------------------------------- breed candidates */
+
+  function renderBreedChips(): void {
+    if (!breedsWrap) return;
+    breedsWrap.textContent = '';
+    const matches: BreedMatch[] = analysis?.breeds ?? [];
+    if (matches.length === 0) {
+      breedsWrap.classList.add('hidden');
+      return;
+    }
+    breedsWrap.classList.remove('hidden');
+    for (const match of matches) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'studio-breed-chip';
+      const pct = Math.round(match.score * 100);
+      chip.textContent = `${match.preset.emoji} ${match.preset.name} ${pct}%`;
+      chip.title = match.preset.note;
+      chip.addEventListener('click', () => {
+        if (!config) return;
+        const base = applyBreedPreset(config, match.preset);
+        config = { ...base, id: config.id, name: config.name, builtin: false, emoji: config.emoji } as CatSkinConfig;
+        breedsWrap.querySelectorAll('.studio-breed-chip').forEach((node) => {
+          node.classList.toggle('active', node === chip);
+        });
+        syncControlsFromConfig();
+        pushPreview();
+      });
+      if (config && config.pattern === match.preset.pattern) {
+        chip.classList.add('active');
+      }
+      breedsWrap.appendChild(chip);
+    }
   }
 
   function applyPatternLook(pattern: CatPattern): void {
@@ -234,6 +460,7 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
       }
 
       syncControlsFromConfig();
+      renderBreedChips();
       pushPreview();
       setStatus(t('menu.studio_ready'), 'ok');
     } catch (err) {
@@ -367,6 +594,9 @@ export function initCatStudio(handlers: CatStudioHandlers): CatStudio {
   }
 
   wireInputs();
+  buildAdvancedPanel();
+  modeSimpleBtn?.addEventListener('click', () => setPanelMode('simple'));
+  modeAdvancedBtn?.addEventListener('click', () => setPanelMode('advanced'));
 
   saveBtn?.addEventListener('click', () => void save());
   repickBtn?.addEventListener('click', () => fileInput.click());

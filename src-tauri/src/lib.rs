@@ -36,6 +36,10 @@ pub const BASE_WIDTH: f64 = 420.0;
 pub const BASE_HEIGHT: f64 = 440.0;
 pub const BASE_WIDTH_108: f64 = 540.0;
 pub const BASE_HEIGHT_108: f64 = 456.0;
+// 75% / 87-key share a 6-row deck; width tracks unit count (≈28px per 1U).
+pub const BASE_WIDTH_75: f64 = 448.0;
+pub const BASE_WIDTH_87: f64 = 512.0;
+pub const BASE_HEIGHT_COMPACT_6ROW: f64 = 456.0;
 pub const MIN_WINDOW_WIDTH: f64 = 100.0;
 pub const MIN_WINDOW_HEIGHT: f64 = 100.0;
 #[cfg(windows)]
@@ -44,10 +48,11 @@ pub const WIN7_MIN_WINDOW_WIDTH: f64 = 260.0;
 pub const WIN7_MIN_WINDOW_HEIGHT: f64 = 410.0;
 
 pub fn base_dimensions(layout: &str) -> (f64, f64) {
-    if layout == "108" {
-        (BASE_WIDTH_108, BASE_HEIGHT_108)
-    } else {
-        (BASE_WIDTH, BASE_HEIGHT)
+    match layout {
+        "108" => (BASE_WIDTH_108, BASE_HEIGHT_108),
+        "87" => (BASE_WIDTH_87, BASE_HEIGHT_COMPACT_6ROW),
+        "75" => (BASE_WIDTH_75, BASE_HEIGHT_COMPACT_6ROW),
+        _ => (BASE_WIDTH, BASE_HEIGHT),
     }
 }
 
@@ -2823,7 +2828,7 @@ fn win_wait_for_previous_pid_if_requested() -> bool {
     waited
 }
 
-fn is_over_interactive_silhouette(rx: f64, ry: f64, is_108: bool, peek_edge: &str) -> (bool, bool) {
+fn is_over_interactive_silhouette(rx: f64, ry: f64, is_wide: bool, peek_edge: &str) -> (bool, bool) {
     if peek_edge == "left" {
         let dx = (rx - 0.16) / 0.28;
         let dy = (ry - 0.50) / 0.34;
@@ -2838,20 +2843,20 @@ fn is_over_interactive_silhouette(rx: f64, ry: f64, is_108: bool, peek_edge: &st
     }
 
     // Cat body/head oval centered around (0.48, 0.49) for 65% or (0.51, 0.48) for 108-key
-    let (cat_cx, cat_rx) = if is_108 { (0.51, 0.21) } else { (0.48, 0.25) };
+    let (cat_cx, cat_rx) = if is_wide { (0.51, 0.21) } else { (0.48, 0.25) };
     let dx_cat = (rx - cat_cx) / cat_rx;
     let dy_cat = (ry - 0.49) / 0.27;
     let over_cat = (dx_cat * dx_cat + dy_cat * dy_cat) <= 1.0;
 
     // Tail curve extending to the right of the cat's hip so users can poke the tail without click-through
-    let over_tail = if is_108 {
+    let over_tail = if is_wide {
         rx >= 0.64 && rx <= 0.85 && ry >= 0.48 && ry <= 0.72
     } else {
         rx >= 0.64 && rx <= 0.90 && ry >= 0.48 && ry <= 0.72
     };
 
     // Keyboard & mouse lower area
-    let over_desk = if is_108 {
+    let over_desk = if is_wide {
         rx >= 0.04 && rx <= 0.94 && ry >= 0.65 && ry <= 0.94
     } else {
         rx >= 0.06 && rx <= 0.92 && ry >= 0.65 && ry <= 0.91
@@ -3029,16 +3034,16 @@ fn start_hit_test_loop(
             let rx = (cx - win_x) as f64 / w;
             let ry = (cy - win_y) as f64 / h;
             let inside = rx >= 0.0 && rx <= 1.0 && ry >= 0.0 && ry <= 1.0;
-            let (locked, always_on_top, is_108, cur_scale) = {
+            let (locked, always_on_top, is_wide, cur_scale, layout_str) = {
                 let s = settings.lock().unwrap();
                 (
                     s.click_through_locked,
                     s.always_on_top,
-                    s.keyboard_layout == "108",
+                    matches!(s.keyboard_layout.as_str(), "108" | "87"),
                     s.scale.clamp(0.20, 1.50),
+                    s.keyboard_layout.clone(),
                 )
             };
-            let layout_str = if is_108 { "108" } else { "65" };
             #[cfg(not(windows))]
             let _ = always_on_top;
 
@@ -3148,7 +3153,7 @@ fn start_hit_test_loop(
 
             // Map window-relative (rx, ry) into exact pet-local (pet_rx, pet_ry),
             // since at small scales (20%..90%) the pet is anchored bottom-right inside a min-safe menu window!
-            let (bw, bh) = base_dimensions(layout_str);
+            let (bw, bh) = base_dimensions(&layout_str);
             let win_log_w = (w / sf).max(1.0);
             let win_log_h = (h / sf).max(1.0);
             let pet_w_frac = ((bw * cur_scale) / win_log_w).clamp(0.05, 1.0);
@@ -3165,12 +3170,12 @@ fn start_hit_test_loop(
                 .unwrap_or_else(|_| "none".to_string());
             let (over_interactive, raw_over_cat) = if cur_peek == "left" || cur_peek == "right" {
                 if inside {
-                    is_over_interactive_silhouette(rx, ry, is_108, &cur_peek)
+                    is_over_interactive_silhouette(rx, ry, is_wide, &cur_peek)
                 } else {
                     (false, false)
                 }
             } else if inside_pet {
-                is_over_interactive_silhouette(pet_rx, pet_ry, is_108, &cur_peek)
+                is_over_interactive_silhouette(pet_rx, pet_ry, is_wide, &cur_peek)
             } else {
                 (false, false)
             };

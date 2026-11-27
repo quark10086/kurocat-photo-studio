@@ -32,6 +32,11 @@ export interface AgentCompanionTarget {
   triggerHappyDemo?(duration?: number): void;
   triggerWakeDemo?(): void;
   triggerTailPatDemo?(): void;
+  /** 换岗 emotes: implementations are optional per renderer. */
+  triggerSaluteDemo?(): void;
+  triggerHissDemo?(): void;
+  triggerIgnoreDemo?(): void;
+  triggerHeartDemo?(): void;
 }
 
 // Natural coding keystroke VKs (home-row letters, symbols, space, enter, backspace)
@@ -231,7 +236,71 @@ export class AgentCompanionController {
           window.setTimeout(() => target.onKeyUp(0x0d), 140);
         }
         break;
+      case 'salute':
+        target.triggerSaluteDemo?.();
+        break;
+      case 'hiss':
+        target.triggerHissDemo?.();
+        break;
+      case 'ignore':
+        target.triggerIgnoreDemo?.();
+        break;
+      case 'heart':
+        target.triggerHeartDemo?.();
+        break;
     }
+  }
+
+  /**
+   * 换岗动效: pick a random emote when the user switches cats.
+   * Renderers only implement the poses they can draw, so filter by presence
+   * (the 3D engine has salute + heart only).
+   */
+  public playSwitchEmote(): void {
+    const target = this.getTarget();
+    if (!target) return;
+    const pool = [
+      {
+        emoji: '🫡',
+        text: '敬礼！',
+        available: typeof target.triggerSaluteDemo === 'function',
+        run: () => target.triggerSaluteDemo?.(),
+      },
+      {
+        emoji: '😾',
+        text: '哈——气！',
+        available: typeof target.triggerHissDemo === 'function',
+        run: () => target.triggerHissDemo?.(),
+      },
+      {
+        emoji: '🥱',
+        text: '谁理你。',
+        available: typeof target.triggerIgnoreDemo === 'function',
+        run: () => target.triggerIgnoreDemo?.(),
+      },
+      {
+        emoji: '💚',
+        text: '比个心',
+        available: typeof target.triggerHeartDemo === 'function',
+        run: () => target.triggerHeartDemo?.(),
+      },
+    ].filter((e) => e.available);
+    if (pool.length === 0) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (pick) {
+      pick.run();
+      this.playEmote(pick.emoji, pick.text);
+    }
+  }
+
+  /** Show a short reaction bubble (no status semantics attached). */
+  public playEmote(emoji: string, text: string): void {
+    const el = this.bubbleEl;
+    if (!el) return;
+    el.dataset.tone = 'info';
+    el.textContent = `${emoji} ${text}`;
+    el.classList.remove('hidden');
+    this.scheduleTtlClear(2400);
   }
 
   private playNoticeThrottled(kind: 'done' | 'waiting' | 'error'): void {
