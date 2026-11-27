@@ -23,24 +23,25 @@
 - `src/catStudio.ts` — 「猫咪工坊」面板：选图、实时 2D 预览、简易/高级两档、8+ 项微调、保存并应用。
 - `src/catBreeds.ts` — 8 个品种预设、花纹亲缘矩阵与匹配打分。
 - `src/mouseStyles.ts` — 8 款鼠标配色与按猫 id 的确定性分配。
+- `src/interactionDirector.ts` — 三种输入驱动互动（连续打字抗议 / 困了打哈欠 / 摸猫冒爱心）的阈值与冷却编排。
 - `site/` — 项目落地页（GitHub Pages）。
 - `docs/screenshots/*`、`docs/release-notes/*` — 功能截图与发布说明。
 
 修改文件：
 
-- `menu.html`、`index.html` — 「角色外观」入口、工坊面板 DOM、物种选择、键盘四档、鼠标样式行。
-- `src/style.css` — 工坊、物种选择、配色分组、鼠标样式行样式。
-- `src/menuMain.ts`、`src/main.ts` — 工坊初始化、切猫动效触发、鼠标风格应用、非猫物种强制 2D。
+- `menu.html`、`index.html` — 「角色外观」入口、工坊面板 DOM、键盘四档、鼠标样式行。
+- `src/style.css` — 工坊、配色分组、键盘四档、鼠标样式行、交接符号样式。
+- `src/menuMain.ts`、`src/main.ts` — 工坊初始化、双猫交接与新互动触发、鼠标风格应用。
 - `src/keyboardLayout.ts` — 新增 75% 与 87 TKL 阵列、`isWideKeyboard` / `normalizeKeyboardLayoutId`。
 - `src/catEngine.ts`、`src/catEngine3d.ts`、`src/keyboard3d.ts` — 布局判定语义化、鼠标配色、换岗动效、
-  非猫物种的分支绘制（复用原有打字目标，不改打字逻辑）。
+  物种分支绘制（v5.2.0 引入，v5.3.0 已整体移除；现仅保留猫与肥鱼）。
 - `src/catSkins.ts` — 新增可选 `species` 字段与解析。
 - `src/agentCompanion.ts` — 新增 salute / hiss / ignore / heart 四个动作与切猫随机动效。
 - `src-tauri/src/lib.rs` — 新增 `save_custom_cat`、`set_cat_studio_open` 两个命令，
   `studio_open` 焦点保护标志，四档键盘的窗口尺寸 `base_dimensions`。
 - `src-tauri/src/cats.rs` — `CatSkinConfig` 新增可选 `species` 字段。
 - `src-tauri/src/config.rs`、`tray.rs`、`mcp.rs` — 键盘布局四档的规范化、托盘菜单与 MCP schema。
-- `locales/{zh-CN,zh-TW,en-US,ja-JP,ko-KR}.json` — 各新增材质/物种/键盘/鼠标相关文案。
+- `locales/{zh-CN,zh-TW,en-US,ja-JP,ko-KR}.json` — 各新增外观/键盘/鼠标相关文案。
 - `README.md` — 改写为以新功能为中心的说明（上游说明仍可从 git 历史中查看）。
 ## 项目名称 / Naming
 
