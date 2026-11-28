@@ -855,7 +855,10 @@ export class KeyboardAndMouse3D {
     this.capH = is108 ? 0.048 : 0.056;
 
     this.boardGroup.position.set(0.24, 0.015, 1.08);
-    this.mouseHome.set(is108 ? -1.46 : -1.16, 0.015, 0.96);
+    // Keep the mouse fully clear of the board's left edge for every layout
+    // (65/75 are much narrower than 87/108, so a single hardcoded X overlapped).
+    const boardLeft = this.boardGroup.position.x - W * 0.5;
+    this.mouseHome.set(boardLeft - 0.30, 0.015, 0.96);
 
     // Soft grounded desk shadow under keyboard
     const kbShadowGeo = new THREE.PlaneGeometry(W * 1.18, D * 1.38);
@@ -993,6 +996,15 @@ export class KeyboardAndMouse3D {
 
   public getBoardWidth(): number {
     return this.boardWidth;
+  }
+
+  /** World-space X of the mouse rest position (mouse lives under deskGroup). */
+  public getMouseHomeX(): number {
+    return this.mouseHome.x;
+  }
+
+  public getBoardCenterX(): number {
+    return this.boardGroup.position.x;
   }
 
   public resolveKey(vk: number): KeyEntry3D | null {

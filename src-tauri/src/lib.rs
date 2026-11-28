@@ -360,7 +360,7 @@ fn resize_window_anchored_bottom_right(
         let new_ph = actual_sz
             .map(|s| s.height as i32)
             .unwrap_or_else(|| (new_h * sf).round() as i32);
-        let (new_x, new_y) = compute_anchored_resize_pos(
+        let (mut new_x, mut new_y) = compute_anchored_resize_pos(
             &active_peek_edge,
             pos.x,
             pos.y,
@@ -369,6 +369,23 @@ fn resize_window_anchored_bottom_right(
             new_pw,
             new_ph,
         );
+        // A layout/scale change resizes the window; anchor it to the current
+        // monitor so repeated changes cannot walk it off-screen.
+        if let Some(mon) = win
+            .current_monitor()
+            .ok()
+            .flatten()
+            .or_else(|| win.available_monitors().ok().and_then(|m| m.into_iter().next()))
+        {
+            let mp = mon.position();
+            let ms = mon.size();
+            let min_x = mp.x;
+            let min_y = mp.y;
+            let max_x = (mp.x + ms.width as i32 - new_pw).max(min_x);
+            let max_y = (mp.y + ms.height as i32 - new_ph).max(min_y);
+            new_x = new_x.clamp(min_x, max_x);
+            new_y = new_y.clamp(min_y, max_y);
+        }
         #[cfg(all(not(windows), not(target_os = "macos")))]
         let (new_x, new_y) = (new_x.max(0), new_y.max(0));
         if new_x != pos.x || new_y != pos.y {
@@ -4242,6 +4259,16 @@ pub fn run() {
                     match (s.display_id.as_deref(), s.x, s.y) {
                         (None, Some(x), Some(y)) => {
                             let _ = win.set_position(PhysicalPosition::new(x, y));
+                            if !macos_window::position_has_usable_area(&win, x, y) {
+                                macos_window::place(&win, None);
+                                if let Ok(pos) = win.outer_position() {
+                                    let state = app.state::<AppState>();
+                                    let mut current = state.settings.lock().unwrap();
+                                    current.x = Some(pos.x);
+                                    current.y = Some(pos.y);
+                                    save_settings(&current);
+                                }
+                            }
                         }
                         (preferred, _, _) => {
                             macos_window::place(&win, preferred);

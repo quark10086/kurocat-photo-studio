@@ -166,12 +166,18 @@ sign_app() {
   elif [[ -n "${MACOS_SIGNING_IDENTITY:-}" ]]; then
     echo "Signing $app with $MACOS_SIGNING_IDENTITY"
     codesign --force --sign "$MACOS_SIGNING_IDENTITY" --identifier "$id" --timestamp=none "$app"
-  elif verify_app "$app" >/dev/null 2>&1; then
+  elif verify_app "$app" >/dev/null 2>&1 &&
+    [[ "$(print_requirement "$app" 2>/dev/null || true)" != *cdhash* ]]; then
     echo "Keeping the existing valid signature of $app"
   else
-    echo "Signing $app ad hoc"
-    codesign --force --deep --sign - --identifier "$id" "$app" 2>/dev/null ||
-      codesign --force --sign - --identifier "$id" "$app"
+    # Ad-hoc signing normally pins the designated requirement to the binary cdhash, which
+    # changes on every rebuild and silently invalidates the Accessibility / Input Monitoring
+    # grants macOS stores for TCC. Use an identifier-only requirement instead so grants
+    # survive rebuilds and updates (the identifier comes from CFBundleIdentifier).
+    local dr="designated => identifier \"$id\""
+    echo "Signing $app ad hoc (stable requirement: $dr)"
+    codesign --force --deep --sign - --identifier "$id" -r "=$dr" "$app" 2>/dev/null ||
+      codesign --force --sign - --identifier "$id" -r "=$dr" "$app"
   fi
 
   if ! verify_app "$app"; then

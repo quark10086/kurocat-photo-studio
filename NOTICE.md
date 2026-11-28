@@ -41,6 +41,12 @@
   `studio_open` 焦点保护标志，四档键盘的窗口尺寸 `base_dimensions`。
 - `src-tauri/src/cats.rs` — `CatSkinConfig` 新增可选 `species` 字段。
 - `src-tauri/src/config.rs`、`tray.rs`、`mcp.rs` — 键盘布局四档的规范化、托盘菜单与 MCP schema。
+- `src-tauri/src/input_hook.rs` — macOS 无权限兜底：用 `CGEventSourceKeyState` / `CGEventCreate`
+  轮询键鼠状态（不需要辅助功能 / 输入监控授权），并接入原有输入管线；同时识别稳定的
+  `identifier "com.kurocat.pet"` ad-hoc 指定要求，修复更新后 TCC 授权对不上导致的“键盘/鼠标都不响应”。
+- `scripts/macos-codesign.sh`、`scripts/macos-sign-local.sh`、`package.json` — macOS 构建改用
+  `identifier`-only 的稳定 ad-hoc 指定要求，并新增 `npm run build:mac` 自动签名，避免每次重新构建后
+  辅助功能 / 输入监控授权失效。
 - `locales/{zh-CN,zh-TW,en-US,ja-JP,ko-KR}.json` — 各新增外观/键盘/鼠标相关文案。
 - `README.md` — 改写为以新功能为中心的说明（上游说明仍可从 git 历史中查看）。
 ## 项目名称 / Naming

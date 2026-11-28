@@ -43,6 +43,7 @@ pub enum InputEvent {
 enum KeySource {
     Primary = 0, // Windows WH_KEYBOARD_LL or macOS CGEventTap
     Hid = 1,     // macOS IOHIDManager (Karabiner VirtualHIDKeyboard / Secure Input resilient)
+    Poll = 2,    // macOS permission-free CGEventSourceKeyState polling fallback
 }
 
 enum RawHookMsg {
@@ -522,6 +523,11 @@ pub fn start_global_hooks(app: AppHandle) {
                     }
                     RawHookMsg::MouseDown(btn) => {
                         if let Some(i) = btn_index(btn) {
+                            // The macOS event tap and the permission-free poller can observe
+                            // the same physical click within a few ms of each other.
+                            if mouse_down[i] {
+                                continue;
+                            }
                             mouse_down[i] = true;
                         }
                         emit_input(
@@ -533,6 +539,9 @@ pub fn start_global_hooks(app: AppHandle) {
                     }
                     RawHookMsg::MouseUp(btn) => {
                         if let Some(i) = btn_index(btn) {
+                            if !mouse_down[i] {
+                                continue;
+                            }
                             mouse_down[i] = false;
                         }
                         emit_input(
@@ -812,8 +821,12 @@ fn run_windows_hook_loop() {
     }
 }
 
-/// Parses `codesign -d -r- <app>` output and returns a canonical Ad-hoc `cdhash` fingerprint
+/// Parses `codesign -d -r- <app>` output and returns a canonical Ad-hoc signature fingerprint
 /// ONLY when the bundle is ad-hoc signed (never for Apple Developer ID / certificate-signed apps).
+///
+/// Ad-hoc requirements used to be `cdhash H"..."`, which changes on every rebuild and makes
+/// macOS TCC grants (Accessibility / Input Monitoring) stale. We now sign with a stable
+/// `identifier "com.kurocat.pet"` requirement, so this also recognizes that form.
 #[cfg(any(target_os = "macos", test))]
 pub(crate) fn parse_macos_adhoc_cdhash(codesign_output: &str) -> Option<String> {
     let req_line = codesign_output
@@ -831,6 +844,10 @@ pub(crate) fn parse_macos_adhoc_cdhash(codesign_output: &str) -> Option<String> 
     if lower.contains("anchor apple") || lower.contains("certificate ") {
         return None;
     }
+    // Linker-signed only / not signed as a bundle: still worth one stale-TCC cleanup.
+    if lower.contains("not signed at all") {
+        return Some("unsigned".to_string());
+    }
 
     let mut hashes: Vec<String> = Vec::new();
     let mut rest = req_line;
@@ -847,6 +864,18 @@ pub(crate) fn parse_macos_adhoc_cdhash(codesign_output: &str) -> Option<String> 
     }
 
     if hashes.is_empty() {
+        // Stable ad-hoc requirement, e.g. `designated => identifier "com.kurocat.pet"`.
+        // The identifier survives rebuilds, so TCC grants survive too; we still record it
+        // as a marker so an upgrade from an older cdhash build triggers exactly one reset.
+        if let Some(id) = req_line
+            .split("identifier \"")
+            .nth(1)
+            .and_then(|tail| tail.split('"').next())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+        {
+            return Some(format!("identifier:{id}"));
+        }
         return None;
     }
     hashes.sort();
@@ -897,7 +926,7 @@ pub mod macos_hook {
     use std::ffi::c_void;
     use std::ptr::NonNull;
     use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering};
-    use std::sync::Once;
+    use std::sync::{Once, OnceLock};
     use std::thread::{self, JoinHandle};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -1007,6 +1036,7 @@ pub mod macos_hook {
         fn CGRequestListenEventAccess() -> bool;
         fn CGEventSourceFlagsState(state_id: i32) -> u64;
         fn CGEventSourceButtonState(state_id: i32, button: u32) -> bool;
+        fn CGEventSourceKeyState(state_id: i32, key: u16) -> bool;
         fn CGEventTapCreate(
             tap: u32,
             place: u32,
@@ -1127,6 +1157,8 @@ pub mod macos_hook {
     static TAP_PORT: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
     static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
     static TAP_HAS_KEYBOARD: AtomicBool = AtomicBool::new(false);
+    static TAP_LAST_KEY_MS: AtomicU64 = AtomicU64::new(0);
+    static TAP_LAST_MOUSE_MS: AtomicU64 = AtomicU64::new(0);
     static HID_ACTIVE: AtomicBool = AtomicBool::new(false);
     static SNAPSHOT_AX: AtomicBool = AtomicBool::new(false);
     static SNAPSHOT_LISTEN: AtomicBool = AtomicBool::new(false);
@@ -1137,6 +1169,12 @@ pub mod macos_hook {
     pub(super) fn start_input_listeners() {
         install_wake_observers();
         spawn_input_workers(run_event_tap_loop, run_hid_loop);
+        // Permission-free safety net: when Accessibility / Input Monitoring are missing
+        // (or an ad-hoc upgrade left a stale TCC record), the tap/HID channels deliver
+        // nothing. CGEventSource* reads do not require any TCC grant, so we poll them
+        // and feed the exact same input pipeline. Disabled automatically as soon as a
+        // permission-backed channel comes online.
+        thread::spawn(run_polling_fallback);
     }
 
     fn spawn_input_workers(
@@ -1301,6 +1339,164 @@ pub mod macos_hook {
             let pt = CGEventGetLocation(ev);
             CFRelease(ev as *const c_void);
             Some((pt.x, pt.y))
+        }
+    }
+
+    /// macOS keycodes (CGKeyCode) that the frontend keyboard knows how to render.
+    fn pollable_keys() -> &'static [(u16, u32)] {
+        static KEYS: OnceLock<Vec<(u16, u32)>> = OnceLock::new();
+        KEYS.get_or_init(|| {
+            (0u16..=127)
+                .filter_map(|key| macos_keycode_to_vk(key).map(|vk| (key, vk)))
+                .collect()
+        })
+    }
+
+    fn key_state(key: u16) -> bool {
+        unsafe { CGEventSourceKeyState(K_CG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, key) }
+    }
+
+    fn mouse_button_state(button: u32) -> bool {
+        unsafe {
+            CGEventSourceButtonState(K_CG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE, button)
+        }
+    }
+
+    fn send_poll_msg(msg: RawHookMsg) {
+        if let Some(tx) = HOOK_TX.get() {
+            let _ = tx.send(msg);
+        }
+    }
+
+    /// Polls the global keyboard/mouse state via CoreGraphics without any TCC permission.
+    ///
+    /// This is the fallback that keeps typing feedback and cursor tracking alive on macOS
+    /// builds where Accessibility / Input Monitoring are denied (the common case for an
+    /// ad-hoc signed app after an update). It is intentionally conservative:
+    /// - keys are only polled while neither CGEventTap nor IOHIDManager can deliver them;
+    /// - mouse motion/buttons are only polled while CGEventTap is unavailable;
+    /// - when a permission-backed channel comes online, held poll keys/buttons are released
+    ///   so the frontend never gets stuck with a pressed paw.
+    fn run_polling_fallback() {
+        const POLL_INTERVAL: Duration = Duration::from_millis(16);
+        const MOUSE_BUTTONS: [(usize, u32, &str); 3] =
+            [(0, 0, "left"), (1, 1, "right"), (2, 2, "middle")];
+
+        let mut key_down = [false; 128];
+        let mut mouse_down = [false; 3];
+        let mut keys_polling = false;
+        let mut mouse_polling = false;
+        let mut last_pos: Option<(i32, i32)> = None;
+
+        for &(key, _) in pollable_keys() {
+            key_down[key as usize] = key_state(key);
+        }
+        for (idx, button, _) in MOUSE_BUTTONS {
+            mouse_down[idx] = mouse_button_state(button);
+        }
+
+        loop {
+            thread::sleep(POLL_INTERVAL);
+
+            let paused = super::HOOKS_PAUSED.load(Ordering::Relaxed);
+            // A tap port can exist and report enabled while TCC silently drops everything.
+            // Treat a channel as healthy only if it delivered an event recently; otherwise
+            // keep polling that channel. Once real events flow again the poller steps aside.
+            let now_ms = wall_clock_ms();
+            let tap_key_alive = TAP_HAS_KEYBOARD.load(Ordering::Acquire)
+                && now_ms.saturating_sub(TAP_LAST_KEY_MS.load(Ordering::Relaxed)) < 1500;
+            let tap_mouse_alive = TAP_ACTIVE.load(Ordering::Acquire)
+                && now_ms.saturating_sub(TAP_LAST_MOUSE_MS.load(Ordering::Relaxed)) < 1500;
+            let want_keys =
+                !paused && !tap_key_alive && !HID_ACTIVE.load(Ordering::Acquire);
+            let want_mouse = !paused && !tap_mouse_alive;
+
+            if want_keys != keys_polling {
+                if want_keys {
+                    // Snapshot current state so keys already held when the tap died do not
+                    // replay as a burst of synthetic keystrokes.
+                    for &(key, _) in pollable_keys() {
+                        key_down[key as usize] = key_state(key);
+                    }
+                } else {
+                    for &(key, vk) in pollable_keys() {
+                        if key_down[key as usize] {
+                            key_down[key as usize] = false;
+                            send_poll_msg(RawHookMsg::KeyUp {
+                                vk,
+                                scan: key as u32,
+                                source: KeySource::Poll,
+                            });
+                        }
+                    }
+                }
+                keys_polling = want_keys;
+            }
+
+            if want_mouse != mouse_polling {
+                if want_mouse {
+                    for (idx, button, _) in MOUSE_BUTTONS {
+                        mouse_down[idx] = mouse_button_state(button);
+                    }
+                    last_pos = None;
+                } else {
+                    for (idx, _, name) in MOUSE_BUTTONS {
+                        if mouse_down[idx] {
+                            mouse_down[idx] = false;
+                            send_poll_msg(RawHookMsg::MouseUp(name));
+                        }
+                    }
+                }
+                mouse_polling = want_mouse;
+            }
+
+            if keys_polling {
+                for &(key, vk) in pollable_keys() {
+                    let down = key_state(key);
+                    if down == key_down[key as usize] {
+                        continue;
+                    }
+                    key_down[key as usize] = down;
+                    if down {
+                        send_poll_msg(RawHookMsg::KeyDown {
+                            vk,
+                            scan: key as u32,
+                            source: KeySource::Poll,
+                        });
+                    } else {
+                        send_poll_msg(RawHookMsg::KeyUp {
+                            vk,
+                            scan: key as u32,
+                            source: KeySource::Poll,
+                        });
+                    }
+                }
+            }
+
+            if mouse_polling {
+                if let Some((x, y)) = cursor_pos_points() {
+                    let point = (x.round() as i32, y.round() as i32);
+                    if last_pos != Some(point) {
+                        last_pos = Some(point);
+                        send_poll_msg(RawHookMsg::MouseMove {
+                            x: point.0,
+                            y: point.1,
+                        });
+                    }
+                }
+                for (idx, button, name) in MOUSE_BUTTONS {
+                    let down = mouse_button_state(button);
+                    if down == mouse_down[idx] {
+                        continue;
+                    }
+                    mouse_down[idx] = down;
+                    if down {
+                        send_poll_msg(RawHookMsg::MouseDown(name));
+                    } else {
+                        send_poll_msg(RawHookMsg::MouseUp(name));
+                    }
+                }
+            }
         }
     }
 
@@ -1543,6 +1739,29 @@ pub mod macos_hook {
                 unsafe { CGEventTapEnable(tap, true) };
             }
             return event;
+        }
+
+        // Liveness signal for the permission-free polling fallback: a tap can be
+        // created/enabled yet never receive events when TCC is stale. Track key and
+        // mouse channels separately so a keyboard-only denial doesn't disable the
+        // mouse fallback (and vice versa).
+        match event_type {
+            K_CG_EVENT_KEY_DOWN | K_CG_EVENT_KEY_UP | K_CG_EVENT_FLAGS_CHANGED => {
+                TAP_LAST_KEY_MS.store(wall_clock_ms(), Ordering::Relaxed);
+            }
+            K_CG_EVENT_MOUSE_MOVED
+            | K_CG_EVENT_LEFT_MOUSE_DRAGGED
+            | K_CG_EVENT_RIGHT_MOUSE_DRAGGED
+            | K_CG_EVENT_LEFT_MOUSE_DOWN
+            | K_CG_EVENT_LEFT_MOUSE_UP
+            | K_CG_EVENT_RIGHT_MOUSE_DOWN
+            | K_CG_EVENT_RIGHT_MOUSE_UP
+            | K_CG_EVENT_OTHER_MOUSE_DOWN
+            | K_CG_EVENT_OTHER_MOUSE_UP
+            | K_CG_EVENT_SCROLL_WHEEL => {
+                TAP_LAST_MOUSE_MS.store(wall_clock_ms(), Ordering::Relaxed);
+            }
+            _ => {}
         }
 
         if let Some(tx) = HOOK_TX.get() {
@@ -1949,6 +2168,9 @@ pub mod macos_hook {
                         CFRunLoopAddSource(rl, tap_src, kCFRunLoopCommonModes);
                         CGEventTapEnable(tap, true);
                         TAP_ACTIVE.store(CGEventTapIsEnabled(tap), Ordering::Release);
+                        let boot_ms = wall_clock_ms();
+                        TAP_LAST_KEY_MS.store(boot_ms, Ordering::Relaxed);
+                        TAP_LAST_MOUSE_MS.store(boot_ms, Ordering::Relaxed);
                     } else {
                         CFMachPortInvalidate(tap);
                         CFRelease(tap as *const c_void);
@@ -2793,6 +3015,23 @@ mod tests {
         let dev_id = "Executable=/Applications/KuroCat.app/Contents/MacOS/KuroCat\n\
             designated => identifier \"com.kurocat.pet\" and anchor apple generic and certificate leaf[subject.OU] = \"ABCDE12345\"";
         assert_eq!(parse_macos_adhoc_cdhash(dev_id), None);
+
+        // Stable ad-hoc requirement we now ship: the identifier survives rebuilds, so TCC
+        // grants survive too, while still triggering one cleanup when upgrading from cdhash.
+        let stable_adhoc = "Executable=/Applications/KuroCat.app/Contents/MacOS/KuroCat\n\
+            designated => identifier \"com.kurocat.pet\"";
+        assert_eq!(
+            parse_macos_adhoc_cdhash(stable_adhoc).as_deref(),
+            Some("identifier:com.kurocat.pet")
+        );
+
+        // A locally built, bundle-unsigned app still needs one stale-TCC cleanup.
+        let unsigned = "Executable=/Applications/KuroCat.app/Contents/MacOS/KuroCat\n\
+            /Applications/KuroCat.app: code object is not signed at all";
+        assert_eq!(
+            parse_macos_adhoc_cdhash(unsigned).as_deref(),
+            Some("unsigned")
+        );
     }
 
     #[test]

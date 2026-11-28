@@ -217,6 +217,9 @@ let active3d = false;
 /** 换岗动效期间临时把桌宠切到 2D，播完再恢复原来的渲染模式 */
 let handoverForce2D = false;
 let handoverTimer = 0;
+/** True when the handover started from a live 3D engine: the 3D state was already
+ *  synced for the new cat at click time, so returning only needs a canvas swap. */
+let handoverReturnFast3d = false;
 let privacyActive = false;
 let gameActive = false;
 
@@ -423,10 +426,11 @@ function activateRenderEngine(): void {
     syncEngine3DState();
     if (!active3d) {
       engine.stop();
-      engine.releaseCachedResources();
       canvas.classList.add('hidden');
       canvas3d.classList.remove('hidden');
-      engine3d.resize();
+      // syncEngine3DState() above already resized the 3D canvas. Calling
+      // engine3d.resize() again reallocated the WebGL drawing buffer twice in
+      // the same tick, which showed up as a hitch when the handover ended.
       engine3d.start();
       active3d = true;
     }
@@ -1236,6 +1240,7 @@ async function bootstrap(): Promise<void> {
       const copy = HANDOVER_COPY[style];
       agentCompanion.playEmote(copy.emoji, copy.text);
       window.clearTimeout(handoverTimer);
+      handoverReturnFast3d = active3d;
       if (active3d) {
         handoverForce2D = true;
         activateRenderEngine();
@@ -1247,7 +1252,25 @@ async function bootstrap(): Promise<void> {
       );
       handoverTimer = window.setTimeout(() => {
         handoverForce2D = false;
-        activateRenderEngine();
+        if (
+          handoverReturnFast3d &&
+          engine3d &&
+          !engine3d.isContextLost() &&
+          wants3DNow()
+        ) {
+          // Fast path: syncMenuUI() already pushed the new cat into the 3D
+          // engine when the switch was clicked. Re-running syncEngine3DState()
+          // here (setCatSkin + every 3D setter) is what made the return hitch.
+          cancelPending3dDispose();
+          engine.stop();
+          canvas.classList.add('hidden');
+          canvas3d.classList.remove('hidden');
+          engine3d.start();
+          active3d = true;
+        } else {
+          activateRenderEngine();
+        }
+        handoverReturnFast3d = false;
       }, 3080);
     }
     if (prevLock !== null && prevLock !== settings.clickThroughLocked) {

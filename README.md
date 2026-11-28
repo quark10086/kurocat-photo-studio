@@ -138,6 +138,31 @@ npm run tauri:dev     # 打开菜单 → 角色外观 → 从图片创建我的�
 如果选图后能出预览、保存后猫换装，就说明这条链路在 macOS 上通了。
 想直接出安装包用 `npm run tauri:build`（产物在 `src-tauri/target/release/bundle/`）。
 
+### macOS 构建：请用 `npm run build:mac`
+
+macOS 的「辅助功能 / 输入监控」授权是绑定到 App 的**代码签名指定要求**（designated requirement）上的。
+普通的 ad-hoc 签名会把要求钉在二进制的 cdhash 上，**每次重新构建都会变**，于是系统设置里开关明明开着，
+App 却收不到任何全局键鼠事件 —— 表现就是打字没有键位气泡、移动鼠标时桌上的鼠标也不动。
+
+`npm run build:mac` 会：
+
+1. 构建 `.app`（不额外打 dmg）；
+2. 用 `scripts/macos-sign-local.sh` → `scripts/macos-codesign.sh sign` 重新签名；
+3. 没有 Apple 证书时，使用 **`identifier "com.kurocat.pet"`** 这种稳定的 ad-hoc 指定要求，
+   而不是 cdhash。这样后续重新构建、覆盖安装都不会让已有授权失效。
+
+装好之后首次启动，请在「系统设置 → 隐私与安全性」里给 KuroCat 打开：
+
+- **辅助功能**（Accessibility）—— CGEventTap 键盘/鼠标事件；
+- **输入监控**（Input Monitoring）—— IOHIDManager 键盘通道（含 Karabiner 虚拟键盘）。
+
+如果开关已经是开的但仍然无效（从旧版本覆盖安装的典型现象），右键托盘图标 →「重置旧权限并重新授权」，
+或在系统设置里先点 `-` 删除旧 KuroCat、再点 `+` 重新添加。
+
+> 兜底：本次 macOS 修复起，Rust 侧还会用 `CGEventSourceKeyState` / `CGEventCreate` 轮询键鼠状态
+> （这两个 API 不需要任何 TCC 授权）。所以即使暂时没授权，打字键位和鼠标跟随也能工作；
+> 授权后会自动切回事件通道，滚轮和零延迟按键仍然需要授权。
+
 ---
 
 ## 与上游的差异

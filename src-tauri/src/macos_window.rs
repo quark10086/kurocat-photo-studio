@@ -88,6 +88,28 @@ fn bottom_right_frame(visible: NSRect, size: NSSize) -> NSRect {
     )
 }
 
+/// True when at least a small part of the pet window would be inside a
+/// monitor's work area. Uses the same top-left physical coordinates as the
+/// saved settings, so it is safe to call right after set_position().
+pub fn position_has_usable_area(window: &WebviewWindow, x: i32, y: i32) -> bool {
+    let size = window
+        .outer_size()
+        .unwrap_or(tauri::PhysicalSize::new(420, 440));
+    let w = size.width as i32;
+    let h = size.height as i32;
+    let mut best = 0i64;
+    for monitor in window.available_monitors().unwrap_or_default() {
+        let p = monitor.position();
+        let s = monitor.size();
+        let ix = (x + w).min(p.x + s.width as i32) - x.max(p.x);
+        let iy = (y + h).min(p.y + s.height as i32) - y.max(p.y);
+        if ix > 0 && iy > 0 {
+            best = best.max(ix as i64 * iy as i64);
+        }
+    }
+    best >= 80 * 80
+}
+
 pub fn place(window: &WebviewWindow, preferred: Option<&str>) -> bool {
     with_native_window(window, |mtm, native| {
         let connected = displays(mtm);

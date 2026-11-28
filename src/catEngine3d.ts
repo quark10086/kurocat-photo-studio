@@ -826,6 +826,7 @@ export class KuroCatEngine3D {
   private vsyncSamples = 0;
   private gameActive = false;
   private lastCamKey = '';
+  private lastResizeKey = '';
   private elapsed = 0;
   private lastInput = 0;
   private lastKey = -100;
@@ -1950,6 +1951,12 @@ export class KuroCatEngine3D {
     const parent = this.canvas.parentElement;
     const w = Math.max(1, parent ? parent.clientWidth : this.canvas.clientWidth || 640);
     const h = Math.max(1, parent ? parent.clientHeight : this.canvas.clientHeight || 420);
+    // setSize() reallocates the WebGL drawing buffer even when the size is
+    // unchanged. During a handover the old and new engines are both synced in
+    // one tick, which used to trigger two reallocations and a visible hitch.
+    const key = `${w}x${h}`;
+    if (key === this.lastResizeKey) return;
+    this.lastResizeKey = key;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -3047,15 +3054,27 @@ export class KuroCatEngine3D {
     const az = (this.sOrbitAz.step(this.orbitAzimuthTarget, dt) * Math.PI) / 180;
     const el = (this.sOrbitEl.step(this.orbitElevTarget, dt) * Math.PI) / 180;
     const effAz = az * (1 - clamp(this.peekAmt, 0, 1));
-    const is108 = this.desk.getLayoutId() === '108';
-    const camKey = `${effAz.toFixed(4)}|${el.toFixed(4)}|${is108 ? 1 : 0}|${this.camera.aspect.toFixed(4)}|${this.renderScale.toFixed(3)}`;
+    const layout = this.desk.getLayoutId();
+    const is108 = layout === '108';
+    const camKey = `${effAz.toFixed(4)}|${el.toFixed(4)}|${layout}|${this.camera.aspect.toFixed(4)}|${this.renderScale.toFixed(3)}`;
     if (camKey !== this.lastCamKey) {
       this.lastCamKey = camKey;
       const baseDist = is108 ? 9.7 : 8.1;
-      const reqHalfW = is108 ? 1.98 : 1.56;
-      const tanHalfFov = Math.tan((this.camera.fov * Math.PI) / 360);
-      const aspectFitDist = reqHalfW / (tanHalfFov * Math.max(0.55, this.camera.aspect));
-      const dist = Math.max(baseDist, aspectFitDist) / Math.max(0.25, this.renderScale);
+      // Fit both the board's right edge and the mouse's left edge into the
+      // frustum. The old fixed reqHalfW=1.56 only fit the 65 layout, so 75/87
+      // cropped the mouse (and sometimes the board's right edge).
+      const tanHalfH =
+        Math.tan((this.camera.fov * Math.PI) / 360) * Math.max(0.55, this.camera.aspect);
+      const elCos = Math.max(0.25, Math.cos(el));
+      const margin = 0.06;
+      const fitAt = (x: number, z: number) =>
+        (Math.abs(x - this.camAnchor.x) + margin) / tanHalfH +
+        (z - this.camAnchor.z) / elCos;
+      const boardRight = this.desk.getBoardCenterX() + this.desk.getBoardWidth() * 0.5;
+      const mouseLeft = this.desk.getMouseHomeX() - 0.17;
+      const dist =
+        Math.max(baseDist, fitAt(mouseLeft, 0.96), fitAt(boardRight, 1.08)) /
+        Math.max(0.25, this.renderScale);
       this.camera.position.set(
         this.camAnchor.x + Math.sin(effAz) * Math.cos(el) * dist,
         this.camAnchor.y + Math.sin(el) * dist,

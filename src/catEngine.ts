@@ -901,7 +901,7 @@ export class KuroCatEngine {
       this.kbWidth = 398;
       this.kbHeight = 96;
       this.kbTiltRad = (2.4 * Math.PI) / 180;
-      this.mouseBaseX = isBigFish ? 54 : 46;
+      this.mouseBaseX = isBigFish ? 54 : this.keyboardLayout === '87' ? 42 : 46;
       this.mouseBaseY = isBigFish ? 332 : 342;
     } else {
       this.logicalW = 420;
@@ -914,7 +914,7 @@ export class KuroCatEngine {
       this.kbWidth = 266;
       this.kbHeight = 74;
       this.kbTiltRad = (3.4 * Math.PI) / 180;
-      this.mouseBaseX = isBigFish ? 72 : 54;
+      this.mouseBaseX = isBigFish ? 72 : this.keyboardLayout === '75' ? 44 : 54;
       this.mouseBaseY = isBigFish ? 322 : 334;
     }
     this.peekTransform = this.computePeekTransform2D();
@@ -1368,6 +1368,7 @@ export class KuroCatEngine {
         ? Math.abs(this.peekAmount - 0.90) > 0.02 || Math.abs(this.peekSpring.v) > 0.02
         : (this.peekAmount > 0.01 && this.peekAmount < 0.99) || Math.abs(this.peekSpring.v) > 0.02;
     const hasActiveAction =
+      this.handover !== null ||
       now - this.lastActionAt < ACTION_RENDER_AFTER_MS ||
       this.heldKeys.size > 0 ||
       this.catTail.heldVks.size > 0 ||
@@ -3544,6 +3545,8 @@ export class KuroCatEngine {
   private handover: {
     breedId: string;
     skin: CatSkinConfig | null;
+    resolvedSkin: ResolvedSkin | null;
+    ghostCanvas: HTMLCanvasElement | null;
     startedAt: number;
     style: 'salute' | 'hiss' | 'ignore' | 'heart';
     durationMs: number;
@@ -3558,13 +3561,58 @@ export class KuroCatEngine {
     if (!previous) return;
     if (previous.breedId === 'dafeiyu' || this.catBreed === 'dafeiyu') return;
     if (previous.breedId === this.catBreed && !previous.skin && !this.customSkin) return;
+    if (this.handover?.ghostCanvas) {
+      this.handover.ghostCanvas.width = 0;
+      this.handover.ghostCanvas.height = 0;
+    }
+    const resolvedSkin = previous.skin ? resolveCustomSkin(previous.skin) : null;
     this.handover = {
       breedId: previous.breedId === 'ragdoll' ? 'ragdoll' : 'black',
       skin: previous.skin,
+      resolvedSkin,
+      ghostCanvas: null,
       startedAt: performance.now(),
       style,
       durationMs,
     };
+    this.handover.ghostCanvas = this.buildHandoverGhostCanvas(this.handover);
+  }
+
+  /**
+   * Pre-renders the outgoing cat once per handover. The ghost is a static body
+   * sprite that is only transformed while fading; drawing it twice per frame at
+   * 60fps was the main cost of the two-cat skit.
+   */
+  private buildHandoverGhostCanvas(ho: {
+    breedId: string;
+    resolvedSkin: ResolvedSkin | null;
+  }): HTMLCanvasElement | null {
+    if (typeof document === 'undefined') return null;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(LOGICAL_W * dpr));
+    canvas.height = Math.max(1, Math.round(LOGICAL_H * dpr));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const prevSkin = this.customSkin;
+    const prevBreed = this.catBreed;
+    this.catBreed = (ho.breedId === 'ragdoll' ? 'ragdoll' : 'black') as CatBreed;
+    this.customSkin = ho.resolvedSkin;
+    try {
+      ctx.save();
+      ctx.translate(this.catCenterX, this.catBaseY);
+      ctx.scale(0.9, 0.9);
+      ctx.translate(-this.catCenterX, -this.catBaseY);
+      this.drawCatBody(ctx, 0, 0);
+      ctx.restore();
+    } catch {
+      return null;
+    } finally {
+      this.customSkin = prevSkin;
+      this.catBreed = prevBreed;
+    }
+    return canvas;
   }
 
   /** 0..58px pan used to make room for the outgoing cat during a handover. */
@@ -3585,7 +3633,16 @@ export class KuroCatEngine {
     if (!ho) return;
     const t = (performance.now() - ho.startedAt) / ho.durationMs;
     if (t >= 1) {
+      // Do not free the 840x880 backing store on the exact frame where the 3D
+      // engine is swapped back in; defer it so the return stays cheap.
+      const ghost = ho.ghostCanvas;
       this.handover = null;
+      if (ghost) {
+        window.setTimeout(() => {
+          ghost.width = 0;
+          ghost.height = 0;
+        }, 1000);
+      }
       return;
     }
     if (t <= 0) return;
@@ -3604,17 +3661,28 @@ export class KuroCatEngine {
     const prevSkin = this.customSkin;
     const prevBreed = this.catBreed;
     this.catBreed = (ho.breedId === 'ragdoll' ? 'ragdoll' : 'black') as CatBreed;
-    this.customSkin = ho.skin ? resolveCustomSkin(ho.skin) : null;
+    this.customSkin = ho.resolvedSkin;
 
     const pan = this.handoverPanAmount();
     ctx.save();
     ctx.globalAlpha = Math.max(0, alpha);
     ctx.translate(x - pan, -6 * Math.sin(hold * Math.PI));
-    ctx.translate(this.catCenterX, this.catBaseY);
-    ctx.scale(0.9, 0.9);
-    ctx.translate(-this.catCenterX, -this.catBaseY);
-    ctx.rotate(-bow);
-    this.drawCatBody(ctx, breath, 0);
+    if (ho.ghostCanvas) {
+      // Cheap path: transform a pre-rendered body sprite instead of redrawing
+      // the whole cat. A tiny vertical scale keeps the breathing feel.
+      const breatheScale = 1 + (Math.max(0, Math.min(1, breath)) - 0.5) * 0.012;
+      ctx.translate(this.catCenterX, this.catBaseY);
+      ctx.rotate(-bow);
+      ctx.scale(1, breatheScale);
+      ctx.translate(-this.catCenterX, -this.catBaseY);
+      ctx.drawImage(ho.ghostCanvas, 0, 0, LOGICAL_W, LOGICAL_H);
+    } else {
+      ctx.translate(this.catCenterX, this.catBaseY);
+      ctx.scale(0.9, 0.9);
+      ctx.translate(-this.catCenterX, -this.catBaseY);
+      ctx.rotate(-bow);
+      this.drawCatBody(ctx, breath, 0);
+    }
     ctx.restore();
     this.customSkin = prevSkin;
     this.catBreed = prevBreed;
